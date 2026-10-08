@@ -8,6 +8,8 @@
 
 `make hc-report` turns collected OpenShift cluster JSON (and optional TSR HTML / CCX runtime) into a consultant-facing markdown report. The engine evaluates checks, derives P0–P3 findings from a TOML knowledge base, and fills `{SLOT}` placeholders in `templates/Health_Check/Template_HC_Report.md`. AI is excluded from check evaluation. An optional post-render Cursor step may rewrite Chapter 3 and Chapter 8 when `HC_SUMMARY_CONCLUSION=1`.
 
+This file is the report-engine capability. A rebuild of `main` implements every capability under `openspec/specs/`: `toolkit`, `hc-collect`, `hc-supportshell`, `hc-knowledge-base`, `hc-native-scoring`, `hc-operator-tools`, and this file. Native scoring lives in `hc-native-scoring` except where a requirement here names the same check and overrides it. `openspec/changes/` is not replayed. `hc-feedback-chunk-h` is an unfinished proposal and is not part of the rebuild baseline.
+
 ## Requirements
 
 ### Requirement: No AI on the Health Check path
