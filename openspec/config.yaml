@@ -1,0 +1,38 @@
+schema: spec-driven
+
+context: |
+  Rebuild of livecheck_parity implements every capability under openspec/specs/:
+  toolkit, hc-collect, hc-supportshell, hc-knowledge-base, hc-native-scoring,
+  hc-report-engine, and hc-operator-tools. There is no openspec/changes history.
+  When hc-report-engine and hc-native-scoring disagree on the same check, hc-report-engine wins.
+  Production knowledge-base rows use [[checks.citations]]. They do not set content_from.
+  Scenarios use GIVEN / WHEN / THEN.
+  A MODIFIED requirement must copy the entire canonical requirement, including
+  every scenario, and the header text must match the canonical title exactly.
+  The health-check engine CLI must stay free of the AI stack. Do not add
+  imports or calls for ai_invoke, prompt_loader, invoke_ai, load_prompt_template,
+  or CURSOR_API_KEY in scripts/health_check/hc_report/cli.py.
+  Do not rename existing hc_report CLI flags.
+  Collection runs on the host. Report, HTML, and PDF generation run in the container.
+
+rules:
+  proposal:
+    - Name the capability being changed
+    - State what is out of scope
+  specs:
+    - Use GIVEN / WHEN / THEN scenarios
+    - For MODIFIED requirements, copy the full canonical requirement and keep the header text identical
+  design:
+    - Name the existing modules to change instead of inventing a new package layout
+  tasks:
+    - Include the pytest coverage for the behavior change
+    - End with archiving the change into the matching openspec/specs/<capability>/spec.md
+
+operations:
+  apply:
+    guidance:
+      - Run the focused pytest files for the change before the full suite
+      - Do not reintroduce openspec/changes history
+  archive:
+    guidance:
+      - Merge only requirements whose headers match the canonical spec

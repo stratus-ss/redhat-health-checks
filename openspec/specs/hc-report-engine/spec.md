@@ -1,14 +1,12 @@
 # Health Check Report Engine
 
-> **Canonical spec:** this file (`openspec/specs/hc-report-engine/spec.md`). Do not recreate `agent_planning/openspec/specs/`.
->
-> **Baseline date:** 2026-08-21 (landed Chunks A–G). Chunk H deltas live in `openspec/changes/hc-feedback-chunk-h/` until archived. `hc-omit-findings` is archived here (2026-08-25). Scoring veracity (`scoring_basis`, native FAIL/WARNING honesty vs OCP 4.22) is archived here (2026-08-25). `hc-tsr-pass-host-condense` is archived here (2026-08-26). `hc-tsr-inventory-condense` is archived here (2026-08-26). `hc-html-pdf-report-file` is archived here (2026-08-26). `hc-narrative-paragraph-spacing` is archived here (2026-08-26). `hc-toc-chapter-links` is archived here (2026-08-26). `hc-live-parity-collect` is archived here (2026-08-28). `hc-live-parity-evaluate` is archived here (2026-08-28). `hc-native-etcd-worksheets` is archived here (2026-08-29). `hc-native-registry-monitoring-storage` is archived here (2026-08-29). `hc-native-node-role-gc` is archived here (2026-08-29). `hc-native-virt-orig-leaves` is archived here (2026-08-29). `hc-native-alias-7-5-7-6` is archived here (2026-08-29). `hc-native-alias-7-3` is archived here (2026-08-29). `hc-native-alias-7-1-7-2` is archived here (2026-08-29). `hc-native-virt-p3` is archived here (2026-08-29). `hc-native-virt-p3-remainder` is archived here (2026-08-29). `hc-native-firewalls` is archived here (2026-08-29). `hc-native-csi-allowlist` is archived here (2026-08-29). `hc-native-quota-coverage` is archived here (2026-08-29). `hc-native-pod-requests` is archived here (2026-08-29). `hc-native-netpol-prune` is archived here (2026-08-29). `hc-native-image-patch` is archived here (2026-08-29). `hc-native-olm-leftovers` is archived here (2026-08-29). `hc-native-upgrade-failed-hops` is archived here (2026-08-29). `hc-chapter7-alias-hide` is archived here (2026-08-29).
+> **Report-engine capability** for `livecheck_parity`. Same-story ids are `[[checks.citations]]`. Production rows do not set `content_from`.
 
 ## Purpose
 
 `make hc-report` turns collected OpenShift cluster JSON (and optional TSR HTML / CCX runtime) into a consultant-facing markdown report. The engine evaluates checks, derives P0–P3 findings from a TOML knowledge base, and fills `{SLOT}` placeholders in `templates/Health_Check/Template_HC_Report.md`. AI is excluded from check evaluation. An optional post-render Cursor step may rewrite Chapter 3 and Chapter 8 when `HC_SUMMARY_CONCLUSION=1`.
 
-This file is the normative Health Check spec. Rebuild the health-check feature from it. Folders under `openspec/changes/` are archived history and are not replayed. Where an archive says `content_from`, this spec's citation rules win.
+This file is the report-engine capability. A rebuild of `livecheck_parity` implements every capability under `openspec/specs/`: `toolkit`, `hc-collect`, `hc-supportshell`, `hc-knowledge-base`, `hc-native-scoring`, `hc-operator-tools`, and this file. Where this file and `hc-native-scoring` name the same check, this file wins.
 
 ## Requirements
 
