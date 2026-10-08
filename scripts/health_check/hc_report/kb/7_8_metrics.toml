@@ -1,0 +1,128 @@
+[[checks]]
+check_id = "7.8.etcd.leader_changes"
+title = "etcd leader changes"
+description = "Frequent etcd leader elections indicate instability, often caused by disk\nlatency, network timeouts, or control plane resource contention. Excessive\nleader churn affects write availability and overall control plane stability.\n"
+recommendation = "Fix the disk or network causing etcd leader elections; do not restart etcd. Zero in the last hour is healthy. One to three is worth a look; more than three is unstable leadership. Check WAL fsync first."
+verification = "1. Leader change count (etcd_server_leader_changes_seen_total) summed over one hour. Zero is **PASS**, 1-3 is **INFO**, above 3 is **WARNING**. An empty result means the metric is not scraped:\n   `oc -n openshift-monitoring exec prometheus-k8s-0 -c prometheus -- curl -sG http://localhost:9090/api/v1/query --data-urlencode 'query=sum(increase(etcd_server_leader_changes_seen_total[1h]))' | jq -r 'if (.data.result|length)==0 then \"n/a\" else .data.result[0].value[1] end' | awk '{if($1==\"n/a\") print \"INFO n/a-leader-changes\"; else {c=$1+0; r=\"PASS\"; if(c>3) r=\"WARNING\"; else if(c>0) r=\"INFO\"; printf \"%s CHANGES=%.0f\\n\", r, c}}'`\n2. Per-member leader changes showing which pod saw the election:\n   `oc -n openshift-monitoring exec prometheus-k8s-0 -c prometheus -- curl -sG http://localhost:9090/api/v1/query --data-urlencode 'query=increase(etcd_server_leader_changes_seen_total[1h])' | jq -r '.data.result[] | [.metric.pod // \"-\", .value[1]] | @tsv' | awk '{printf \"POD=%s CHANGES=%.0f\\n\", $1, $2+0} END{if(NR==0) print \"INFO n/a-leader-changes\"}'`\n3. If step 1 printed **INFO** or **WARNING**, check etcd member logs for election entries:\n   `oc -n openshift-etcd logs etcd-<member> -c etcd --since=1h | grep 'elected leader'`"
+priority_hint = ""
+impact = "maintenance-window"
+impact_scope = "control plane nodes and etcd storage path"
+impact_detail = "Fixing etcd disk-performance problems usually requires control-plane infrastructure or storage changes that can reduce API capacity while nodes are remediated."
+
+[checks.links]
+default = "https://access.redhat.com/solutions/4885641"
+"4.18" = "https://access.redhat.com/solutions/4885641"
+"4.19" = "https://access.redhat.com/solutions/4885641"
+"4.20" = "https://access.redhat.com/solutions/4885641"
+"4.21" = "https://access.redhat.com/solutions/4885641"
+"4.22" = "https://access.redhat.com/solutions/4885641"
+
+[[checks]]
+check_id = "7.8.etcd.wal*"
+pattern = true
+title = "etcd WAL fsync latency"
+description = "etcd WAL fsync latency directly impacts write throughput and leader elections.\nP99 latency above 10 ms is a documented FAIL. Use NVMe or enterprise SSD for etcd.\n"
+recommendation = "Move etcd onto NVMe or enterprise SSD when WAL fsync P99 is above 10 ms. Do not retune etcd to hide slow disks. A missing metric means WAL latency was not scraped. Backend commit and peer RTT are correlation only."
+verification = "1. WAL fsync P99 latency per etcd member (etcd_disk_wal_fsync_duration_seconds). At or below 10 ms is **PASS**, above 10 ms is **FAIL**. An empty result means the metric is not scraped:\n   `oc -n openshift-monitoring exec prometheus-k8s-0 -c prometheus -- curl -sG http://localhost:9090/api/v1/query --data-urlencode 'query=histogram_quantile(0.99, rate(etcd_disk_wal_fsync_duration_seconds_bucket[5m]))' | jq -r '.data.result[] | [.metric.pod // \"-\", .value[1]] | @tsv' | awk '{if($2==\"NaN\"||$2==\"+Inf\"||$2==\"-Inf\"){print \"INFO\", \"POD=\"$1, \"P99=n/a-nan\"; next} ms=$2*1000; r=\"PASS\"; if(ms>10) r=\"FAIL\"; printf \"%s POD=%s P99=%.1fms\\n\", r, $1, ms} END{if(NR==0) print \"INFO n/a-wal\"}'`\n2. Backend commit latency and peer round-trip time for correlation only:\n   `oc -n openshift-monitoring exec prometheus-k8s-0 -c prometheus -- curl -sG http://localhost:9090/api/v1/query --data-urlencode 'query=histogram_quantile(0.99, rate(etcd_disk_backend_commit_duration_seconds_bucket[5m]))' | jq -r '.data.result[] | [.metric.pod // \"-\", .value[1]] | @tsv' | awk '{if($2==\"NaN\"||$2==\"+Inf\"||$2==\"-Inf\"){print \"INFO\", \"POD=\"$1, \"BACKEND_P99=n/a-nan\"; next} printf \"POD=%s BACKEND_P99=%.1fms\\n\", $1, $2*1000} END{if(NR==0) print \"INFO n/a-backend\"}'`\n   `oc -n openshift-monitoring exec prometheus-k8s-0 -c prometheus -- curl -sG http://localhost:9090/api/v1/query --data-urlencode 'query=histogram_quantile(0.99, rate(etcd_network_peer_round_trip_time_seconds_bucket[2m]))' | jq -r '.data.result[] | [.metric.pod // \"-\", .value[1]] | @tsv' | awk '{if(!seen[$1]++) printf \"POD=%s RTT=%.1fms\\n\", $1, $2*1000} END{if(NR==0) print \"INFO n/a-rtt\"}'`\n3. Etcd member endpoint status across the cluster:\n   `oc -n openshift-etcd exec -c etcd etcd-<member> -- etcdctl endpoint status --cluster -w table`\n4. Ensure etcd nodes use NVMe or enterprise SSD and dedicate a partition for `/var/lib/etcd` on bare metal.\n5. If latency stays elevated, validate the storage subsystem with `quay.io/cloud-bulldozer/etcd-perf` before planning remediation."
+priority_hint = ""
+impact = "maintenance-window"
+impact_scope = "control plane nodes and etcd storage path"
+impact_detail = "Fixing etcd disk-performance problems usually requires control-plane infrastructure or storage changes that can reduce API capacity while nodes are remediated."
+
+[checks.links]
+default = "https://docs.redhat.com/en/documentation/openshift_container_platform/latest/html-single/etcd/index"
+"4.18" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/scalability_and_performance/recommended-performance-and-scalability-practices-2"
+"4.19" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html-single/etcd/index"
+"4.20" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/scalability_and_performance/recommended-performance-and-scalability-practices-2"
+"4.21" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html-single/etcd/index"
+"4.22" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html-single/etcd/index"
+
+[[checks]]
+check_id = "7.8.etcd.proposals"
+title = "etcd failed proposals"
+description = "Failed raft proposals indicate that some write requests could not be committed.\nThis usually points to a slow or failed cluster member, or disk/network\nlatency affecting quorum progress.\n"
+recommendation = "Fix the slow member or disk causing failed raft proposals; do not restart etcd. Zero is healthy. Any failed proposal is a write-path problem. Check WAL fsync before treating a member as dead."
+verification = "1. Failed proposal count (etcd_server_proposals_failed_total) summed over one hour. Zero is **PASS**, above zero is **WARNING**. An empty result means the metric is not scraped:\n   `oc -n openshift-monitoring exec prometheus-k8s-0 -c prometheus -- curl -sG http://localhost:9090/api/v1/query --data-urlencode 'query=sum(increase(etcd_server_proposals_failed_total[1h]))' | jq -r 'if (.data.result|length)==0 then \"n/a\" else .data.result[0].value[1] end' | awk '{if($1==\"n/a\") print \"INFO n/a-proposals\"; else {c=$1+0; r=\"PASS\"; if(c>0) r=\"WARNING\"; printf \"%s FAILED=%.0f\\n\", r, c}}'`\n2. Per-member failed proposals showing which pod dropped writes:\n   `oc -n openshift-monitoring exec prometheus-k8s-0 -c prometheus -- curl -sG http://localhost:9090/api/v1/query --data-urlencode 'query=increase(etcd_server_proposals_failed_total[1h])' | jq -r '.data.result[] | [.metric.pod // \"-\", .value[1]] | @tsv' | awk '{printf \"POD=%s FAILED=%.0f\\n\", $1, $2+0} END{if(NR==0) print \"INFO n/a-proposals\"}'`\n3. If step 1 printed **WARNING**, list firing etcd leader-change and gRPC-slow alerts. An empty result means no relevant alerts are active:\n   `oc -n openshift-monitoring exec prometheus-k8s-0 -c prometheus -- curl -sG http://localhost:9090/api/v1/query --data-urlencode 'query=ALERTS{alertname=~\"etcdHighNumberOfLeaderChanges|etcdGRPCRequestsSlow\"}' | jq -r '.data.result[] | [.metric.alertname // \"-\", .metric.pod // \"-\", .metric.alertstate // \"-\"] | @tsv' | awk '{print \"WARNING\", \"ALERT=\"$1, \"POD=\"$2, \"STATE=\"$3} END{if(NR==0) print \"PASS none-firing\"}'`"
+priority_hint = ""
+impact = "maintenance-window"
+impact_scope = "control plane nodes and etcd storage path"
+impact_detail = "Fixing etcd disk-performance problems usually requires control-plane infrastructure or storage changes that can reduce API capacity while nodes are remediated."
+
+[checks.links]
+default = "https://etcd.io/docs/latest/tuning/"
+"4.18" = "https://etcd.io/docs/latest/tuning/"
+"4.19" = "https://etcd.io/docs/latest/tuning/"
+"4.20" = "https://etcd.io/docs/latest/tuning/"
+"4.21" = "https://etcd.io/docs/latest/tuning/"
+"4.22" = "https://etcd.io/docs/latest/tuning/"
+
+[[checks]]
+check_id = "7.8.apiserver.latency"
+title = "API server latency"
+description = "This check's verification bar treats API server P99 latency above 500 ms as a warning (timeouts in kubelet, controller-manager, and scheduler) and above 1000 ms as an API incident. Investigate etcd slowness, control plane resource exhaustion, and excessive API churn.\n"
+recommendation = "Fix etcd disk or webhook timeouts when API server P99 is over 500 ms; do not change API flags first. The finding is the slowest RESOURCE/VERB pair; WATCH and CONNECT are excluded. Over 500 ms is slow; over 1000 ms is an API incident. Skip the follow-up command when P99 is already healthy."
+verification = "1. Slowest API resource/verb pair by P99 latency (`topk(1, … > 0)`). At or below 500 ms is **PASS**, above 500 ms is **WARNING**, above 1000 ms is **FAIL**. An empty result means no resource latency is available:\n   `oc -n openshift-monitoring exec prometheus-k8s-0 -c prometheus -- curl -sG http://localhost:9090/api/v1/query --data-urlencode 'query=topk(1, histogram_quantile(0.99, sum(rate(apiserver_request_duration_seconds_bucket{scope=\"resource\",verb!~\"WATCH|CONNECT\"}[5m])) by (le, resource, verb)) > 0)' | jq -r '.data.result[] | [.metric.resource, .metric.verb, .value[1]] | @tsv' | awk '{ms=$3*1000; r=\"PASS\"; if(ms>1000) r=\"FAIL\"; else if(ms>500) r=\"WARNING\"; print r, \"RESOURCE=\"$1, \"VERB=\"$2, \"P99=\"int(ms+0.5)\"ms\"} END{if(NR==0) print \"INFO n/a-apiserver-latency\"}'`\n2. Only if step 1 printed **WARNING** or **FAIL**, list remaining pairs above 500 ms (`… > 0.5`). An empty result means only the top pair was slow:\n   `oc -n openshift-monitoring exec prometheus-k8s-0 -c prometheus -- curl -sG http://localhost:9090/api/v1/query --data-urlencode 'query=histogram_quantile(0.99, sum(rate(apiserver_request_duration_seconds_bucket{scope=\"resource\",verb!~\"WATCH|CONNECT\"}[5m])) by (le, resource, verb)) > 0.5' | jq -r '.data.result[] | [.metric.resource, .metric.verb, .value[1]] | @tsv' | awk '{ms=$3*1000; r=\"WARNING\"; if(ms>1000) r=\"FAIL\"; print r, \"RESOURCE=\"$1, \"VERB=\"$2, \"P99=\"int(ms+0.5)\"ms\"} END{if(NR==0) print \"PASS none-slow\"}'`"
+priority_hint = ""
+impact = "maintenance-window"
+impact_scope = "etcd disk or admission webhooks"
+impact_detail = "Fixing etcd disk-performance problems usually requires control-plane infrastructure or storage changes that can reduce API capacity while nodes are remediated. Webhook timeout or Fail policy is an API-object change and does not reboot nodes."
+
+[checks.links]
+default = "https://raw.githubusercontent.com/kubernetes/community/master/sig-scalability/slos/api_call_latency.md"
+
+[[checks]]
+check_id = "7.8.pvc.util.critical"
+title = "PVC utilization critical"
+description = "PVCs above 90% utilization are at immediate risk of filling completely, which\ncauses application errors, data loss, or pod eviction. Expand or migrate\nimmediately before the volume reaches 100%.\n"
+recommendation = "Expand or migrate PVCs over 90% used before ENOSPC. Expand in place only if the StorageClass allows it; otherwise migrate. Online resize can still restart the pod. Any such claim needs action now."
+verification = "1. PVCs over 90% utilization (kubelet_volume_stats_used_bytes / capacity). Any listed row is **FAIL**. An empty result means no claim exceeds 90%:\n   `oc -n openshift-monitoring exec prometheus-k8s-0 -c prometheus -- curl -sG http://localhost:9090/api/v1/query --data-urlencode 'query=round(kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes * 100, 1) > 90' | jq -r '.data.result[] | [.metric.namespace, .metric.persistentvolumeclaim, .value[1]] | @tsv' | awk -F'\\t' '{print \"FAIL\", \"NS=\"$1, \"PVC=\"$2, \"USED=\"int($3)\"%\"} END{if(NR==0) print \"PASS none-critical\"}'`\n2. For each listed PVC, print phase, capacity, request size, and StorageClass:\n   `oc get pvc <name> -n <ns> -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,STATUS:.status.phase,CAPACITY:.status.capacity.storage,REQUEST:.spec.resources.requests.storage,SC:.spec.storageClassName`\n3. Pods mounting the affected PVC. These workloads will hit ENOSPC if the volume fills:\n   `oc get pod -n <ns> --no-headers -o custom-columns=POD:.metadata.name,PVC:.spec.volumes[*].persistentVolumeClaim.claimName | awk -v claim='<name>' '$0 ~ claim {print \"POD=\"$1, \"PVC=\"$2}'`\n4. StorageClass volume expansion support. `EXPAND=true` can grow in place; `EXPAND=false` requires migration:\n   `oc get sc -o custom-columns=NAME:.metadata.name,EXPAND:.allowVolumeExpansion --no-headers | awk '{print \"NAME=\"$1, \"EXPAND=\"$2}'`\n5. Firing KubePersistentVolumeFillingUp alert. Any listed row needs action. An empty result means the alert is not firing:\n   `oc -n openshift-monitoring exec prometheus-k8s-0 -c prometheus -- curl -s http://localhost:9090/api/v1/alerts | jq -r '.data.alerts[] | select(.labels.alertname==\"KubePersistentVolumeFillingUp\") | [.state, .labels.namespace, .labels.persistentvolumeclaim, .labels.severity] | @tsv' | awk -F'\\t' '{print \"FAIL\", \"STATE=\"$1, \"NS=\"$2, \"PVC=\"$3, \"SEVERITY=\"$4} END{if(NR==0) print \"INFO n/a-fillingup-alert\"}'`\n6. If expansion is supported, patch the PVC size (resize starts after patch). Otherwise migrate to a larger volume:\n   `oc patch pvc <name> -n <ns> -p '{\"spec\":{\"resources\":{\"requests\":{\"storage\":\"<new-size>\"}}}}'`\n7. After patching, confirm FileSystemResizePending clears and capacity matches the request:\n   `oc get pvc <name> -n <ns> -o jsonpath='{range .status.conditions[*]}{.type}={.status}{\"\\n\"}{end}'`"
+priority_hint = ""
+impact = "workload-shift"
+impact_scope = "workloads mounted to the affected PVC"
+impact_detail = "Online expansion may be transparent, but storage migration or cutover can require pod restart, rescheduling, or temporary workload movement."
+
+[checks.links]
+default = "https://docs.redhat.com/en/documentation/openshift_container_platform/latest/html-single/storage/index#expanding-csi-volumes_expanding-persistent-volumes"
+"4.18" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/storage/index#expanding-csi-volumes_expanding-persistent-volumes"
+"4.19" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html-single/storage/index#expanding-csi-volumes_expanding-persistent-volumes"
+"4.20" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/storage/index#expanding-csi-volumes_expanding-persistent-volumes"
+"4.21" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html-single/storage/index#expanding-csi-volumes_expanding-persistent-volumes"
+"4.22" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html-single/storage/index#expanding-csi-volumes_expanding-persistent-volumes"
+
+[[checks]]
+check_id = "7.8.pvc.util.warning"
+title = "PVC utilization warning"
+description = "PVCs between 75% and 90% used may fill during peak load. Plan expansion or migration before the claim reaches the 90% critical band.\n"
+recommendation = "Plan expansion or migration for PVCs in the 75–90% band before they hit 90%. Any row in this band needs a dated plan."
+verification = "1. PVCs between 75% and 90% utilization. Any listed row is **WARNING**. An empty result means no claim is in the warning band:\n   `oc -n openshift-monitoring exec prometheus-k8s-0 -c prometheus -- curl -sG http://localhost:9090/api/v1/query --data-urlencode 'query=(round(kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes * 100, 1) > 75) unless (round(kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes * 100, 1) > 90)' | jq -r '.data.result[] | [.metric.namespace, .metric.persistentvolumeclaim, .value[1]] | @tsv' | awk -F'\\t' '{print \"WARNING\", \"NS=\"$1, \"PVC=\"$2, \"USED=\"int($3)\"%\"} END{if(NR==0) print \"PASS none-warning\"}'`\n2. For each listed PVC, print phase, capacity, request size, and StorageClass:\n   `oc get pvc <name> -n <ns> -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,STATUS:.status.phase,CAPACITY:.status.capacity.storage,REQUEST:.spec.resources.requests.storage,SC:.spec.storageClassName`\n3. Pods mounting the affected PVC:\n   `oc get pod -n <ns> --no-headers -o custom-columns=POD:.metadata.name,PVC:.spec.volumes[*].persistentVolumeClaim.claimName | awk -v claim='<name>' '$0 ~ claim {print \"POD=\"$1, \"PVC=\"$2}'`\n4. StorageClass volume expansion support. `EXPAND=true` can grow in place; `EXPAND=false` requires migration:\n   `oc get sc -o custom-columns=NAME:.metadata.name,EXPAND:.allowVolumeExpansion --no-headers | awk '{print \"NAME=\"$1, \"EXPAND=\"$2}'`\n5. Firing KubePersistentVolumeFillingUp alert. A firing row usually means the claim crossed 90%. An empty result means the alert is not firing:\n   `oc -n openshift-monitoring exec prometheus-k8s-0 -c prometheus -- curl -s http://localhost:9090/api/v1/alerts | jq -r '.data.alerts[] | select(.labels.alertname==\"KubePersistentVolumeFillingUp\") | [.state, .labels.namespace, .labels.persistentvolumeclaim, .labels.severity] | @tsv' | awk -F'\\t' '{print \"WARNING\", \"STATE=\"$1, \"NS=\"$2, \"PVC=\"$3, \"SEVERITY=\"$4} END{if(NR==0) print \"INFO n/a-fillingup-alert\"}'`\n6. Schedule expansion during a maintenance window. If expansion is supported, patch the PVC. Otherwise plan migration before usage crosses 90%:\n   `oc patch pvc <name> -n <ns> -p '{\"spec\":{\"resources\":{\"requests\":{\"storage\":\"<new-size>\"}}}}'`\n7. After patching, confirm FileSystemResizePending clears and capacity matches the request:\n   `oc get pvc <name> -n <ns> -o jsonpath='{range .status.conditions[*]}{.type}={.status}{\"\\n\"}{end}'`"
+priority_hint = ""
+impact = "non-disruptive"
+impact_scope = "affected PVC-backed workloads"
+impact_detail = "Proactive expansion is often online when the StorageClass supports it; only backend migrations or unsupported expansion paths require workload movement."
+
+[checks.links]
+default = "https://docs.redhat.com/en/documentation/openshift_container_platform/latest/html-single/storage/index#expanding-csi-volumes_expanding-persistent-volumes"
+"4.18" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/storage/index#expanding-csi-volumes_expanding-persistent-volumes"
+"4.19" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html-single/storage/index#expanding-csi-volumes_expanding-persistent-volumes"
+"4.20" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/storage/index#expanding-csi-volumes_expanding-persistent-volumes"
+"4.21" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html-single/storage/index#expanding-csi-volumes_expanding-persistent-volumes"
+"4.22" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html-single/storage/index#expanding-csi-volumes_expanding-persistent-volumes"
+
+[[checks]]
+check_id = "7.8.pvc.util.ok"
+title = "PVC utilization normal"
+description = "This check's verification bar is PVC capacity under 75% used. Continue monitoring for sustained growth trends and confirm expansion procedures are documented.\n"
+recommendation = "Keep PVCs under 75% and confirm StorageClass expansion now so you are not inventing a process at 90%. This is the healthy band, not a skip on capacity planning."
+verification = "1. All PVCs listed by namespace. This is informational while usage stays under 75%:\n   `oc get pvc -A`\n2. StorageClass volume expansion support. Confirm `EXPAND=true` before you need it:\n   `oc get sc -o custom-columns=NAME:.metadata.name,EXPAND:.allowVolumeExpansion`\n3. Review growth trends so expansion can be planned before any PVC reaches the 75% warning band."
+priority_hint = ""
+impact = "none"
+impact_scope = ""
+impact_detail = ""
+
+[checks.links]
+default = "https://docs.redhat.com/en/documentation/openshift_container_platform/latest/html-single/storage/index#expanding-persistent-volumes"
+"4.18" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/storage/index#expanding-persistent-volumes"
+"4.19" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html-single/storage/index#expanding-persistent-volumes"
+"4.20" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/storage/index#expanding-persistent-volumes"
+"4.21" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html-single/storage/index#expanding-persistent-volumes"
+"4.22" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html-single/storage/index#expanding-persistent-volumes"
