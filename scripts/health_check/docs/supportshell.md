@@ -6,7 +6,6 @@
   - [Review KB documentation links](sections/shared_link_validation.md)
   - [Fetch Results and Generate the Report](sections/supportshell_fetch_and_report.md)
   - [Review the Report](sections/shared_review_checklist.md)
-  - [Extract Sprint Work Items](sections/shared_work_items.md)
   - [Export to PDF](sections/shared_export.md)
   - [Limitations vs Live Collection](sections/supportshell_limitations.md)
   - [Reference](sections/supportshell_reference.md)

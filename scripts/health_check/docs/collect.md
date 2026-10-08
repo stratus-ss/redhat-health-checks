@@ -11,7 +11,6 @@
   - [Review KB documentation links](sections/shared_link_validation.md)
   - [Generate the Branded Report](sections/shared_report_generation.md)
   - [Review the Report](sections/shared_review_checklist.md)
-  - [Extract Sprint Work Items](sections/shared_work_items.md)
   - [Export to PDF](sections/shared_export.md)
   - [Full Pipeline at a Glance](sections/shared_pipeline_glance.md)
   - [Makefile Targets](sections/shared_makefile_targets.md)

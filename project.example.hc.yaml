@@ -3,7 +3,6 @@ client_name: "{CLIENT}"
 project_code: "HC"
 engagement_type: "health-check"
 document_title_hld: "OpenShift Health Check"
-document_title_lld: "OpenShift Health Check — Execution Guide"
 
 brand:
   primary_color: "#EE0000"
@@ -12,20 +11,10 @@ brand:
   code_font: '"Overpass Mono", "Liberation Mono", "Courier New", monospace'
   footer_text: "Consulting Engagement Report"
 
-phases:
-  - id: phase1
-    name: "Foundation"
-    dir_name: "Phase1_Foundation"
-    lld_file: "HC_LLD_Phase1_Foundation.md"
-
 hld:
   phase_files: []
   combined_files: []
   summary_map: {}
-
-lld:
-  combined_file: "HC_LLD_Combined.md"
-  combined_title: "OpenShift Health Check — Combined LLD"
 
 diagrams:
   phase_dirs: []
@@ -57,7 +46,6 @@ health_check:
   # Optional: path to an ADR file for drift analysis
   adr_path: ""
   # Output directories
-  output_lld_path: "output/Health_Check_LLD/"
   output_report_path: "output/Health_Check_Report/"
   output_drift_path: "output/Drift_Analysis/"
   output_workitems_path: "output/Work_Items/"
@@ -67,7 +55,7 @@ health_check:
   tsr_ccx_catalog_path: "scripts/health_check/hc_report/catalogs/tsr_ccx_crosswalk.json"
   tsr_html_path: ""              # path to TSR HTML export for runtime parity scoring (optional)
 
-  # HC phases — maps to HC-01 through HC-12 sections in the LLD template
+  # Engagement phases
   phases:
     - id: hc-01
       name: "Engagement Setup"

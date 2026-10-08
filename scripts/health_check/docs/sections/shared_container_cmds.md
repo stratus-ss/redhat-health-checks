@@ -19,5 +19,4 @@ hc-investigate
 | File | Purpose |
 |------|---------|
 | `templates/Health_Check/Template_HC_Report.md` | Final branded report (customer deliverable) |
-| `templates/Health_Check/Template_HC_LLD_Execution_Guide.md` | Procedural runbook for executing a health check |
 | `templates/Health_Check/Template_HC_Drift_Analysis.md` | ADR drift analysis report |
