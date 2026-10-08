@@ -1,6 +1,6 @@
 # Health Check scripts
 
-Map of `scripts/health_check/`. Engagement how-to lives in `collect/README.md` and `supportshell/README.md` (`make hc-docs` regenerates those from `docs/`). Maintainer execution path: [docs/CODEFLOW.md](../../docs/CODEFLOW.md) sections 6–8.
+Map of `scripts/health_check/`. Engagement how-to lives in `collect/README.md` and `supportshell/README.md` (`make hc-docs` regenerates those from `docs/`). Start at the repo [README](../../README.md#pick-a-path).
 
 ## Pipeline (usually `make`)
 
@@ -27,7 +27,7 @@ Name **one** markdown file. Do not glob.
 
 ## Engagement targets
 
-Start at the repo [README](../../README.md#health-check). This is the full Health Check target list. How each one runs: [docs/CODEFLOW.md](../../docs/CODEFLOW.md) sections 6–8. Variables: [Make variables](../../docs/CODEFLOW.md#make-variables).
+Start at the repo [README](../../README.md#pick-a-path). This is the full Health Check target list. Operator steps: [collect](collect/README.md) and [supportshell](supportshell/README.md). Variables: [Environment variables](collect/README.md#environment-variables).
 
 | Target | Runtime | Purpose |
 |---|---|---|

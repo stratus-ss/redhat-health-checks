@@ -1,8 +1,8 @@
-"""HLD/LLD deliverable filename prefix from a client name."""
+"""Client filename prefix used when setup copies templates."""
 
 
-def derive_hld_lld_file_prefix(client_name: str) -> str:
-    """Derive the HLD/LLD deliverable filename prefix from a client name.
+def derive_client_file_prefix(client_name: str) -> str:
+    """Derive a filename prefix from a client name.
 
     'Example Client' -> 'Example'     (first word)
     'Globex'    -> 'Globex'            (single word)

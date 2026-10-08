@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
-from client_prefix import derive_hld_lld_file_prefix
+from client_prefix import derive_client_file_prefix
 from config import get_client_identity
 from diagram_layout import PHASE_DIAGRAM_PREFIXES, TOP_LEVEL_PREFIXES
 from setup_status import (
@@ -30,7 +30,6 @@ from setup_status import (
     _print_step_ai,
     _print_step_hc_collect,
     _print_step_hc_setup,
-    _print_step_lld,
     _print_step_publish,
     _print_step_setup,
     _print_step_workitems,
@@ -139,7 +138,7 @@ def create_project_yaml(workspace: Path, client_name: str, project_code: str, pr
     with open(example, encoding="utf-8") as template_file:
         content = template_file.read()
 
-    file_prefix = derive_hld_lld_file_prefix(client_name)
+    file_prefix = derive_client_file_prefix(client_name)
 
     content = content.replace("{CLIENT}", client_name)
     content = content.replace("{CLIENT_PREFIX}", file_prefix)
@@ -204,19 +203,16 @@ def process_templates(workspace: Path, client_name: str, file_prefix: str, templ
 # ── File renaming (Template_* -> Client_*) ──────────────────────────
 
 HLD_TEMPLATE_PREFIX = "Template_OCP-V_HLD_DecisionJourney"
-LLD_TEMPLATE_PREFIX = "Template_OCP-V_LLD"
 
 TEMPLATES_HLD_MD = Path("templates") / "HLD" / "markdown_files"
-TEMPLATES_LLD = Path("templates") / "LLD"
 TEMPLATES_ADR = Path("templates") / "ADR"
 TEMPLATES_DIAGRAMS_EXAMPLES = Path("templates") / "Diagrams" / "examples"
 OUTPUT_HLD_MD = Path("output") / "HLD" / "markdown_files"
-OUTPUT_LLD = Path("output") / "LLD"
 OUTPUT_DIAGRAMS = Path("output") / "Diagrams"
 
 
 def collect_working_copy_conflicts(workspace: Path, file_prefix: str, project_code: str) -> list[Path]:
-    """Return existing HLD/LLD/ADR working copies that setup would overwrite."""
+    """Return existing working copies that setup would overwrite."""
     conflicts: list[Path] = []
     hld_source = workspace / TEMPLATES_HLD_MD
     hld_dest = workspace / OUTPUT_HLD_MD
@@ -225,13 +221,6 @@ def collect_working_copy_conflicts(workspace: Path, file_prefix: str, project_co
         for source in sorted(hld_source.glob(f"{HLD_TEMPLATE_PREFIX}*.md")):
             suffix_part = source.name[len(HLD_TEMPLATE_PREFIX) :]
             dest = hld_dest / f"{client_hld_prefix}{suffix_part}"
-            if dest.exists():
-                conflicts.append(dest)
-    lld_source = workspace / TEMPLATES_LLD
-    lld_dest = workspace / OUTPUT_LLD
-    if lld_source.exists():
-        for source in sorted(lld_source.glob(f"{LLD_TEMPLATE_PREFIX}*.md")):
-            dest = lld_dest / source.name.replace("Template_", f"{file_prefix}_")
             if dest.exists():
                 conflicts.append(dest)
     adr_client = workspace / "ADR" / f"ADR_{file_prefix.lower()}.md"
@@ -272,18 +261,6 @@ def rename_templates(workspace: Path, config: dict, file_prefix: str, project_co
             dest = hld_dest / new_name
             shutil.copy2(template_file, dest)
             info(f"  {template_file.name} -> output/HLD/markdown_files/{new_name}")
-            count += 1
-
-    # LLD phase files: templates → output
-    lld_source = workspace / TEMPLATES_LLD
-    lld_dest = workspace / OUTPUT_LLD
-    if lld_source.exists():
-        lld_dest.mkdir(parents=True, exist_ok=True)
-        for template_file in sorted(lld_source.glob(f"{LLD_TEMPLATE_PREFIX}*.md")):
-            new_name = template_file.name.replace("Template_", f"{file_prefix}_")
-            dest = lld_dest / new_name
-            shutil.copy2(template_file, dest)
-            info(f"  {template_file.name} -> output/LLD/{new_name}")
             count += 1
 
     # ADR template: templates/ADR → ADR/ (filled engagement ADR stays at repo root)
@@ -458,9 +435,6 @@ PROJECT_TYPES: dict[str, ProjectType] = {
             "output/HLD/PDFs",
             "output/HLD/diagrams",
             "output/HLD/markdown_files",
-            "output/LLD/PDFs",
-            "output/LLD/diagrams",
-            "output/LLD",
             "output/Diagrams/phase1",
             "output/Diagrams/phase2",
             "output/Diagrams/phase3",
@@ -468,7 +442,7 @@ PROJECT_TYPES: dict[str, ProjectType] = {
             "ADR",
         ),
         # Placeholder replacement targets (immutable sources live under templates/)
-        template_dirs=("ADR", "output/HLD/markdown_files", "output/LLD"),
+        template_dirs=("ADR", "output/HLD/markdown_files"),
         has_hld_templates=True,
         has_diagram_seeding=True,
         has_hld_status=True,
@@ -477,7 +451,6 @@ PROJECT_TYPES: dict[str, ProjectType] = {
             _print_step_adr,
             _print_step_ai,
             _print_step_publish,
-            _print_step_lld,
             _print_step_workitems,
             _print_optional,
         ),
@@ -549,11 +522,11 @@ def run_setup(workspace: Path, client_name: str, project_code: str = "OCP-V", fo
     """Execute the full project setup."""
     project_code = project_code or "OCP-V"
     project_type = get_project_type(project_code)
-    file_prefix = derive_hld_lld_file_prefix(client_name)
+    file_prefix = derive_client_file_prefix(client_name)
 
     heading("Configuration")
     config = create_project_yaml(workspace, client_name, project_code, project_type)
-    file_prefix = derive_hld_lld_file_prefix(config.get("client_name", client_name))
+    file_prefix = derive_client_file_prefix(config.get("client_name", client_name))
     project_code = config.get("project_code", project_code)
 
     scaffold_directories(workspace, project_type.scaffold_dirs)
@@ -601,7 +574,7 @@ def main() -> None:
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Overwrite existing HLD/LLD/ADR working copies from templates",
+        help="Overwrite existing working copies from templates",
     )
     args = parser.parse_args()
 

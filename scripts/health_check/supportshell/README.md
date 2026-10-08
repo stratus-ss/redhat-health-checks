@@ -31,9 +31,6 @@ make hc-fetch-results    → output/hc_collect/<YYYY-MM-DD>/       (dated stagin
 make hc-report           → output/Health_Check_Report/           (branded markdown report + audit JSON)
      │
      ▼
-make workitems           → output/Work_Items/                    (Jira-importable CSV + per-story markdown)
-     │
-     ▼
 make hc-pdf              → output/Health_Check_Report/PDFs/      (customer report PDF)
 make hc-html             → output/Health_Check_Report/HTML/      (collapsible HTML report)
 ```
@@ -326,19 +323,6 @@ Key things to review before delivering to the customer:
 - **NOT_APPLICABLE checks** — confirm these correctly reflect what is / isn't installed on the cluster
 - **Cluster metadata at the top** — if any fields show `TBD`, populate them in `project.yaml` and re-run `make hc-report`
 
-## Extract Sprint Work Items
-
-```bash
-make workitems
-```
-
-This parses the execution guide LLD (from `output/Health_Check_LLD/`) and extracts all action items as Kanban stories and sub-tasks into `output/Work_Items/`. Two files are produced:
-
-- Individual markdown files per HC phase (HC-01 through HC-12) — one Story per phase
-- `health_check_workitems.csv` — a Jira bulk-import CSV that can be uploaded directly to a Jira project
-
-To import into Jira: **Issues → Import Issues from CSV**, select the CSV, map the columns, and import.
-
 ## Export to PDF
 
 ```bash
@@ -347,9 +331,9 @@ make hc-pdf REPORT=output/Health_Check_Report/<report>.md
 make hc-html REPORT=path.md FORCE=1   # overwrite existing basename dest only
 ```
 
-This runs inside the project container (same as `make pdfs` for OCP-V), which has `pandoc` and `weasyprint` already installed. No host dependencies needed beyond `podman` or `docker`.
+This runs inside the `redhat-health-checks` container, which has `pandoc` and `weasyprint` already installed. No host dependencies needed beyond `podman` or `docker`.
 
-The flow is identical to the OCP-V pipeline: markdown → `pandoc` (branded CSS + HTML) → `weasyprint` (PDF).
+The flow is markdown → `pandoc` (branded CSS + HTML) → `weasyprint` (PDF).
 
 PDFs are written to:
 - `output/Health_Check_Report/PDFs/` — customer-facing report (nested reports keep a cluster subdirectory, e.g. `PDFs/<cluster_dir>/…`)
@@ -521,7 +505,7 @@ HC_MG_INPUT must-gather/case path on remote (for hc-collect-remote) — always s
 explicitly, e.g. /home/remote/<username>/<case-number>, not ~/<case-number>
 HC_FETCH_STAGE output/hc_collect/<date> — dated staging dir for supportshell fetches (auto-computed)
 MERGE_INPUTS "dir1 dir2 ..." — inputs for hc-merge
-HC_TSR_HTML /path/to/file.html — explicit TSR HTML path (overrides auto-discovery)
+HC_TSR_HTML repo-relative path to a TSR HTML export (overrides auto-discovery)
 HC_TSR_HTML_DIR output/tsr_html — directory for TSR HTML auto-discovery (default)
 HC_CHECK_PROFILE advisory — check expansion profile: core | extended | advisory
 HC_OMIT_CHECK_IDS repo-relative path to a check-ID omit list (writes {stem}_pruned.md)
@@ -529,6 +513,20 @@ HC_OMIT_STRICT 1 — fail if an omit ID is not on a Chapter 6 finding
 HC_CCX_RULES_FILE /path/to/ccx_rules.json — optional CCX runtime payload for collection
 HC_DOCS_ROOT local OpenShift docs tree for make hc-link-review
 HC_LINK_REVIEW_OUT output dir for kb_link_review.md / .csv
+ENGINE podman or docker (podman when it is on PATH)
+IMAGE redhat-health-checks — container image name
+CLIENT client name for make setup
+PROJECT HC — engagement code (default)
+FORCE 1 to replace files setup already created, or overwrite an hc-html/hc-pdf basename dest
+REPORT one markdown file for hc-html, hc-pdf, hc-summary-conclusion, hc-update-loi, hc-renumber-findings
+DRY_RUN 1 to preview hc-update-loi or hc-renumber-findings
+HC_DRY_RUN 1 to pass --dry-run on hc-report (placeholder executive summary)
+HC_SUMMARY_CONCLUSION 1 to draft Chapter 3 and Chapter 8 after hc-report
+RESULTS_DIR collected JSON directory for hc-investigate
+FINDING_ID finding id for hc-investigate (CHECK_ID= or QUERY= also work)
+LEDGER skipped_commands.jsonl path for hc-skip-summary (RESULTS_DIR= also works)
+TSR_HTML TSR HTML export for make hc-build-catalog
+AI_TOOL optional tool name passed into the Chapter 3/8 draft
 
 ## Report Generator Package
 
@@ -585,11 +583,10 @@ hc-investigate
 
 ##### Templates
 
-| File                                                        | Purpose                                         |
-|-------------------------------------------------------------|-------------------------------------------------|
-| `templates/Health_Check/Template_HC_Report.md`              | Final branded report (customer deliverable)     |
-| `templates/Health_Check/Template_HC_LLD_Execution_Guide.md` | Procedural runbook for executing a health check |
-| `templates/Health_Check/Template_HC_Drift_Analysis.md`      | ADR drift analysis report                       |
+| File                                                   | Purpose                                     |
+|--------------------------------------------------------|---------------------------------------------|
+| `templates/Health_Check/Template_HC_Report.md`         | Final branded report (customer deliverable) |
+| `templates/Health_Check/Template_HC_Drift_Analysis.md` | ADR drift analysis report                   |
 
 ## Troubleshooting
 

@@ -13,9 +13,6 @@ make hc-fetch-results    → output/hc_collect/<YYYY-MM-DD>/       (dated stagin
 make hc-report           → output/Health_Check_Report/           (branded markdown report + audit JSON)
      │
      ▼
-make workitems           → output/Work_Items/                    (Jira-importable CSV + per-story markdown)
-     │
-     ▼
 make hc-pdf              → output/Health_Check_Report/PDFs/      (customer report PDF)
 make hc-html             → output/Health_Check_Report/HTML/      (collapsible HTML report)
 ```

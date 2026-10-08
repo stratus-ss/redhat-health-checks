@@ -11,9 +11,6 @@ make hc-collect        → output/hc_collect/                    (raw JSON from 
 make hc-report         → output/Health_Check_Report/           (branded markdown report + audit JSON)
      │
      ▼
-make workitems         → output/Work_Items/                    (Jira-importable CSV + per-story markdown)
-     │
-     ▼
 make hc-pdf            → output/Health_Check_Report/PDFs/      (customer report PDF; nested reports keep cluster subdirectories)
 make hc-html           → output/Health_Check_Report/HTML/      (collapsible HTML report; nested reports keep cluster subdirectories)
 ```

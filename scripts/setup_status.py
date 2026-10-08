@@ -8,7 +8,6 @@ import yaml
 from config import get_client_identity
 
 OUTPUT_HLD_MD = Path("output") / "HLD" / "markdown_files"
-OUTPUT_LLD = Path("output") / "LLD"
 OUTPUT_DIAGRAMS = Path("output") / "Diagrams"
 
 ok = warn = info = fail = heading = None
@@ -68,9 +67,8 @@ def _count_glob(base: Path, pattern: str) -> int:
 
 
 def _setup_state(workspace: Path, config: dict) -> dict:
-    """Compute HLD/LLD/diagram/ADR presence state (the 'is setup complete' checks)."""
+    """Compute HLD/diagram/ADR presence state (the 'is setup complete' checks)."""
     hld_md = workspace / OUTPUT_HLD_MD
-    lld_dir = workspace / OUTPUT_LLD
     hld_section = config.get("hld", {})
     hld_phases = hld_section.get("phase_files", [])
     hld_found = 0
@@ -78,14 +76,6 @@ def _setup_state(workspace: Path, config: dict) -> dict:
         for filename in hld_phases:
             if (hld_md / filename).exists():
                 hld_found += 1
-    lld_phase_files = []
-    for phase in config.get("phases", []):
-        lld_phase_files.append(phase.get("lld_file", ""))
-    lld_found = 0
-    if lld_dir.exists():
-        for filename in lld_phase_files:
-            if (lld_dir / filename).exists():
-                lld_found += 1
     phase_drawio, top_drawio = _count_drawio(workspace, config)
     adr_dir = workspace / "ADR"
     _adr_excluded = {"ADR_template.md", "ADR_EXAMPLE.md"}
@@ -97,8 +87,6 @@ def _setup_state(workspace: Path, config: dict) -> dict:
     setup_ok = (
         hld_found == len(hld_phases)
         and hld_found > 0
-        and lld_found == len(lld_phase_files)
-        and lld_found > 0
         and (phase_drawio + top_drawio) > 0
         and len(adr_files) > 0
     )
@@ -107,8 +95,6 @@ def _setup_state(workspace: Path, config: dict) -> dict:
     return {
         "hld_phases": hld_phases,
         "hld_found": hld_found,
-        "lld_phase_files": lld_phase_files,
-        "lld_found": lld_found,
         "phase_drawio": phase_drawio,
         "top_drawio": top_drawio,
         "adr_files": adr_files,
@@ -145,10 +131,9 @@ def _ai_state(workspace: Path, output_dir: Path) -> dict:
 
 
 def _build_state(workspace: Path, config: dict, output_dir: Path) -> dict:
-    """Compute HLD/LLD stitched/PDF/PNG build-output state under output/."""
+    """Compute HLD stitched/PDF/PNG build-output state under output/."""
     _ = workspace
     hld_md = output_dir / "HLD" / "markdown_files"
-    lld_dir = output_dir / "LLD"
     hld_section = config.get("hld", {})
     hld_combined = hld_section.get("combined_files", [])
     hld_stitched = False
@@ -158,15 +143,7 @@ def _build_state(workspace: Path, config: dict, output_dir: Path) -> dict:
     hld_pngs = _count_glob(output_dir / "HLD" / "diagrams", "*.png")
     hld_drawio_md = _count_glob(output_dir / "HLD" / "markdown_files", "Drawio_*.md")
 
-    lld_section = config.get("lld", {})
-    lld_combined_file = lld_section.get("combined_file", "")
-    lld_stitched = bool(lld_combined_file and (lld_dir / lld_combined_file).exists())
-    lld_pdfs = _count_glob(output_dir / "LLD" / "PDFs", "*.pdf")
-    lld_pngs = _count_glob(output_dir / "LLD" / "diagrams", "*.png")
-    lld_drawio_md = _count_glob(output_dir / "LLD", "Drawio_*.md")
-
     hld_built = hld_stitched or hld_pdfs > 0 or hld_pngs > 0
-    lld_built = lld_stitched or lld_pdfs > 0 or lld_pngs > 0
 
     return {
         "hld_stitched": hld_stitched,
@@ -174,11 +151,6 @@ def _build_state(workspace: Path, config: dict, output_dir: Path) -> dict:
         "hld_pngs": hld_pngs,
         "hld_drawio_md": hld_drawio_md,
         "hld_built": hld_built,
-        "lld_stitched": lld_stitched,
-        "lld_pdfs": lld_pdfs,
-        "lld_pngs": lld_pngs,
-        "lld_drawio_md": lld_drawio_md,
-        "lld_built": lld_built,
     }
 
 
@@ -230,7 +202,6 @@ def _gather_state(workspace: Path, config: dict, project_type=None) -> dict:
 def _print_step_setup(state: dict) -> None:
     """Step 1: make setup."""
     setup_ok, hld_found, hld_phases = state["setup_ok"], state["hld_found"], state["hld_phases"]
-    lld_found, lld_phase_files = state["lld_found"], state["lld_phase_files"]
     diagrams = state["phase_drawio"] + state["top_drawio"]
     adr_files = state["adr_files"]
 
@@ -239,7 +210,6 @@ def _print_step_setup(state: dict) -> None:
     if setup_ok:
         parts = [
             f"HLD {hld_found}/{len(hld_phases)}",
-            f"LLD {lld_found}/{len(lld_phase_files)}",
             f"{diagrams} diagrams",
             f"ADR: {adr_files[0].name}",
         ]
@@ -247,8 +217,6 @@ def _print_step_setup(state: dict) -> None:
     else:
         if hld_found < len(hld_phases):
             warn(f"HLD templates: {hld_found}/{len(hld_phases)}")
-        if lld_found < len(lld_phase_files):
-            warn(f"LLD templates: {lld_found}/{len(lld_phase_files)}")
         if diagrams == 0:
             warn("No diagrams seeded")
         if not adr_files:
@@ -324,36 +292,15 @@ def _print_step_publish(state: dict) -> None:
     print()
 
 
-def _print_step_lld(state: dict) -> None:
-    """Step 5: make build-lld."""
-    lld_built = state["lld_built"]
-    step_label = f"{_STATUS_ARROW} " if state["hld_built"] and not lld_built else "   "
-    print(f"  {step_label}{BOLD}Step 5:{RESET}  make build-lld  (runs in container)")
-    if lld_built:
-        parts = []
-        if state["lld_stitched"]:
-            parts.append("stitched")
-        if state["lld_drawio_md"]:
-            parts.append(f"{state['lld_drawio_md']} Drawio md")
-        if state["lld_pngs"]:
-            parts.append(f"{state['lld_pngs']} PNG(s)")
-        if state["lld_pdfs"]:
-            parts.append(f"{state['lld_pdfs']} PDF(s)")
-        ok(f"Done — {', '.join(parts)}")
-    else:
-        warn("Not built yet — stitches phases, exports diagrams, generates PDFs")
-    print()
-
-
 def _print_step_workitems(state: dict) -> None:
-    """Step 6: make workitems."""
+    """Step 5: make workitems."""
     wi_files = state["wi_files"]
-    step_label = f"{_STATUS_ARROW} " if state["lld_built"] and not wi_files else "   "
-    print(f"  {step_label}{BOLD}Step 6:{RESET}  make workitems")
+    step_label = f"{_STATUS_ARROW} " if state["hld_built"] and not wi_files else "   "
+    print(f"  {step_label}{BOLD}Step 5:{RESET}  make workitems")
     if wi_files:
         ok(f"Done — {len(wi_files)} work item(s)")
     else:
-        warn("Not run yet — extracts sprint work items from LLD")
+        warn("Not run yet")
     print()
 
 
@@ -394,7 +341,7 @@ def run_status(workspace: Path, project_type=None) -> None:
     heading("Project Status")
 
     if not yaml_path.exists():
-        fail('project.yaml not found — run: make setup CLIENT="Your Client" PROJECT="OCP-V" or PROJECT="HC"')
+        fail('project.yaml not found — run: make setup CLIENT="Your Client" PROJECT="HC"')
         return
 
     with open(yaml_path, encoding="utf-8") as yaml_file:

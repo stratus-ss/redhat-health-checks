@@ -2,9 +2,7 @@
 """
 ai_invoke.py — Shared AI-invocation module (Cursor SDK / Claude CLI / Codex CLI).
 
-Extracted from scripts/hld_lld/ai/ai_draft_deterministic.py and
-scripts/hld_lld/ai/deterministic/slots.py so the HLD/LLD AI drafting pipeline
-uses a single source of truth for invoking Cursor SDK / Claude CLI / Codex CLI.
+Shared caller for Cursor SDK, Claude CLI, and Codex CLI.
 """
 
 from __future__ import annotations

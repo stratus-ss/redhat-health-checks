@@ -9,7 +9,6 @@ CLI usage (for bash scripts):
     python3 scripts/shared/lib/config.py get client_name
     python3 scripts/shared/lib/config.py get brand.primary_color
     python3 scripts/shared/lib/config.py get-list hld.phase_files
-    python3 scripts/shared/lib/config.py get-list phases[].lld_file
     python3 scripts/shared/lib/config.py get-map hld.summary_map
     python3 scripts/shared/lib/config.py render-css --doc-type hld
 
@@ -165,8 +164,6 @@ def render_css(config: dict, doc_type: str) -> str:
 
     if doc_type == "hld":
         title = config["document_title_hld"]
-    elif doc_type == "lld":
-        title = config["document_title_lld"]
     elif doc_type == "hc":
         title = f"{config.get('client_name', '')} OpenShift Health Check"
     else:
@@ -438,7 +435,7 @@ def main() -> None:
     getmap_p.add_argument("key", help="Dot-separated key path")
 
     css_p = sub.add_parser("render-css", help="Render print CSS")
-    css_p.add_argument("--doc-type", required=True, choices=["hld", "lld", "hc"], help="Document type for header title")
+    css_p.add_argument("--doc-type", required=True, choices=["hld", "hc"], help="Document type for header title")
 
     sub.add_parser("render-css-html", help="Render screen CSS for collapsible HTML report")
 

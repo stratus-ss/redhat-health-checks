@@ -13,7 +13,7 @@ This file is the report-engine capability. A rebuild of `main` implements every 
 ## Requirements
 
 ### Requirement: No AI on the Health Check path
-The Health Check **engine** CLI (`scripts/health_check/hc_report/cli.py`) SHALL NOT import or invoke the HLD/LLD AI stack. An optional **post-render** process MAY draft Chapter 3 and Chapter 8 after `generate_report.py` has written markdown.
+The Health Check **engine** CLI (`scripts/health_check/hc_report/cli.py`) SHALL NOT import or invoke an architecture-document AI stack. An optional **post-render** process MAY draft Chapter 3 and Chapter 8 after `generate_report.py` has written markdown.
 
 #### Scenario: CLI source has no AI tokens
 - GIVEN `scripts/health_check/hc_report/cli.py`

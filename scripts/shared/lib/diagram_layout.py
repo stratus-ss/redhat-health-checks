@@ -5,10 +5,10 @@ from __future__ import annotations
 import re
 
 PHASE_DIAGRAM_PREFIXES = {
-    "phase1": ["HLD_Phase1_", "LLD_Phase1_", "HLD_phase1_", "LLD_phase1_"],
-    "phase2": ["HLD_Phase2_", "LLD_Phase2_", "HLD_phase2_", "LLD_phase2_"],
-    "phase3": ["HLD_Phase3_", "LLD_Phase3_", "HLD_phase3_", "LLD_phase3_"],
-    "phase4": ["HLD_Phase4_", "LLD_Phase4_", "HLD_phase4_", "LLD_phase4_"],
+    "phase1": ["HLD_Phase1_", "HLD_phase1_"],
+    "phase2": ["HLD_Phase2_", "HLD_phase2_"],
+    "phase3": ["HLD_Phase3_", "HLD_phase3_"],
+    "phase4": ["HLD_Phase4_", "HLD_phase4_"],
 }
 
 TOP_LEVEL_PREFIXES = [
