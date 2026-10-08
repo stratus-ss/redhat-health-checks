@@ -1,7 +1,7 @@
 """Evaluators for 7.5 Cluster Health."""
 from __future__ import annotations
 
-import json
+import math
 import re
 from collections import Counter, defaultdict
 
@@ -10,6 +10,9 @@ from hc_report.evaluators._common import (
     _is_missing,
     _node_info,
     _not_applicable,
+    _parse_alerts_list,
+    _parse_prometheus_vector,
+    _prometheus_value,
     _resource_labels,
     _resource_metadata,
     _resource_status,
@@ -27,21 +30,6 @@ _COMPACT_CLUSTER_DOC_REF = (
     "installing-platform-agnostic.html#configuring-a-three-node-cluster_installing-platform-agnostic"
 )
 _POD_KEY_RE = re.compile(r"\b([a-z0-9][a-z0-9.-]{0,61})/([a-z0-9][a-z0-9.-]{0,251})\b")
-
-
-def _parse_alerts_list(alerts_data: dict) -> list[dict]:
-    """Extract firing alert list from various data shapes."""
-    if "data" in alerts_data and "alerts" in alerts_data.get("data", {}):
-        return alerts_data["data"]["alerts"]
-    if alerts_data.get("status") == "success":
-        return alerts_data.get("data", {}).get("alerts", [])
-    if "_hc_text" in alerts_data:
-        try:
-            parsed = json.loads(alerts_data.get("output", "{}"))
-            return parsed.get("data", {}).get("alerts", [])
-        except (json.JSONDecodeError, TypeError):
-            pass
-    return []
 
 
 def _alert_name(alert: dict) -> str:
@@ -154,15 +142,52 @@ def _evaluate_pod_health(pods_data: dict, category_id: str, category_name: str) 
     return checks
 
 
+def _cluster_node_utilization(
+    per_node_checks: list[CheckResult], category_id: str, category_name: str,
+) -> CheckResult:
+    warning_count = sum(1 for check in per_node_checks if check.status == "WARNING")
+    info_count = sum(1 for check in per_node_checks if check.status == "INFO")
+    pass_count = sum(1 for check in per_node_checks if check.status == "PASS")
+    if warning_count:
+        status = "WARNING"
+    elif info_count:
+        status = "INFO"
+    else:
+        status = "PASS"
+    return CheckResult(
+        category_id, category_name, f"{category_id}.node.utilization",
+        "Current node load", status,
+        f"WARNING={warning_count} INFO={info_count} PASS={pass_count}",
+    )
+
+
+def _missing_node_utilization(
+    category_id: str, category_name: str, extra_evidence: str | None = None,
+) -> list[CheckResult]:
+    evidence = extra_evidence if extra_evidence is not None else "Data not collected"
+    return [
+        _not_applicable(
+            f"{category_id}.node_util", "Node Resource Utilization",
+            category_id, category_name, evidence,
+        ),
+        _not_applicable(
+            f"{category_id}.node.utilization", "Current node load",
+            category_id, category_name, evidence,
+        ),
+    ]
+
+
 def _evaluate_node_utilization(top_nodes_data: dict, category_id: str, category_name: str) -> list[CheckResult]:
     """Node CPU and memory utilization from oc adm top nodes."""
     if _is_missing(top_nodes_data):
-        return [_not_applicable(f"{category_id}.node_util", "Node Resource Utilization", category_id, category_name)]
+        return _missing_node_utilization(category_id, category_name)
 
     text = top_nodes_data.get("output", "")
     if not text.strip():
-        return [_not_applicable(f"{category_id}.node_util", "Node Resource Utilization", category_id, category_name,
-                    "oc adm top nodes returned no output (metrics-server may not be running)")]
+        return _missing_node_utilization(
+            category_id, category_name,
+            "oc adm top nodes returned no output (metrics-server may not be running)",
+        )
 
     checks = []
     for line in text.splitlines():
@@ -176,8 +201,12 @@ def _evaluate_node_utilization(top_nodes_data: dict, category_id: str, category_
         if check:
             checks.append(check)
 
-    return checks or [_not_applicable(f"{category_id}.node_util", "Node Resource Utilization", category_id, category_name,
-                          "Could not parse top nodes output")]
+    if not checks:
+        return _missing_node_utilization(
+            category_id, category_name, "Could not parse top nodes output",
+        )
+    checks.append(_cluster_node_utilization(checks, category_id, category_name))
+    return checks
 
 
 def _parse_top_node_line(parts: list[str], category_id: str, category_name: str) -> CheckResult | None:
@@ -468,17 +497,104 @@ def _evaluate_health_node_roles(nodes_data: dict, category_id: str, category_nam
                         "nodes")]
 
 
+def _evaluate_pdb(pdb_data: dict, category_id: str, category_name: str) -> list[CheckResult]:
+    if not pdb_data:
+        return [CheckResult(
+            category_id, category_name, f"{category_id}.pdb",
+            "5.9 Pod Disruption Budget", "SKIPPED",
+            "PDB data not in standard collection", "pdb",
+        )]
+    if pdb_data.get("_hc_error"):
+        return [CheckResult(
+            category_id, category_name, f"{category_id}.pdb",
+            "5.9 Pod Disruption Budget", "SKIPPED",
+            "PDB collection failed", "pdb",
+        )]
+    items = _get_items(pdb_data)
+    if pdb_data.get("_hc_not_found") or not items:
+        return [CheckResult(
+            category_id, category_name, f"{category_id}.pdb",
+            "5.9 Pod Disruption Budget", "INFO",
+            "No PodDisruptionBudget resources", "pdb",
+        )]
+    blocked = []
+    for item in items:
+        status = item.get("status", {}) if isinstance(item.get("status"), dict) else {}
+        disruptions_allowed = status.get("disruptionsAllowed")
+        current_healthy = status.get("currentHealthy", 0)
+        desired_healthy = status.get("desiredHealthy", 0)
+        if disruptions_allowed == 0 and current_healthy < desired_healthy:
+            blocked.append(_resource_metadata(item).get("name", "?"))
+    if blocked:
+        return [CheckResult(
+            category_id, category_name, f"{category_id}.pdb",
+            "5.9 Pod Disruption Budget", "WARNING",
+            f"{len(blocked)} PDB(s) blocking disruptions: {', '.join(blocked[:5])}",
+            "pdb",
+        )]
+    return [CheckResult(
+        category_id, category_name, f"{category_id}.pdb",
+        "5.9 Pod Disruption Budget", "PASS",
+        f"{len(items)} PodDisruptionBudget(s) allow disruptions",
+        "pdb",
+    )]
+
+
+_VOLUME_MOUNT_FAIL_SECONDS = 10.0
+_VOLUME_MOUNT_WARNING_SECONDS = 2.0
+
+
+def _evaluate_volume_mount_p99(
+    prometheus_data: dict, category_id: str, category_name: str,
+) -> list[CheckResult]:
+    check_id = f"{category_id}.volume.mount_p99"
+    title = "Volume mount p99 duration"
+    if _is_missing(prometheus_data):
+        return [CheckResult(
+            category_id, category_name, check_id, title, "SKIPPED",
+            "Volume mount PromQL missing or query failed", "metrics",
+        )]
+    samples = _parse_prometheus_vector(prometheus_data)
+    sample_seconds: list[float] = []
+    for item in samples:
+        sample_value = _prometheus_value(item)
+        if math.isnan(sample_value) or math.isinf(sample_value):
+            continue
+        sample_seconds.append(sample_value)
+    if not sample_seconds:
+        return [CheckResult(
+            category_id, category_name, check_id, title, "INFO",
+            "Volume mount PromQL returned an empty result vector", "metrics",
+        )]
+    peak_seconds = max(sample_seconds)
+    if peak_seconds > _VOLUME_MOUNT_FAIL_SECONDS:
+        status = "FAIL"
+        evidence = (
+            f"Volume mount p99 {peak_seconds:.2f}s exceeds "
+            f"{_VOLUME_MOUNT_FAIL_SECONDS:.0f}s"
+        )
+    elif peak_seconds > _VOLUME_MOUNT_WARNING_SECONDS:
+        status = "WARNING"
+        evidence = (
+            f"Volume mount p99 {peak_seconds:.2f}s exceeds "
+            f"{_VOLUME_MOUNT_WARNING_SECONDS:.0f}s"
+        )
+    else:
+        status = "PASS"
+        evidence = (
+            f"Volume mount p99 {peak_seconds:.2f}s at or below "
+            f"{_VOLUME_MOUNT_WARNING_SECONDS:.0f}s"
+        )
+    return [CheckResult(
+        category_id, category_name, check_id, title, status, evidence, "metrics",
+    )]
+
+
 def _evaluate_health_static_checks(category_id: str, category_name: str) -> list[CheckResult]:
     return [
         CheckResult(category_id, category_name, f"{category_id}.machineset",
                     "5.8 Machine Set", "SKIPPED",
                     "MachineSet data not in standard collection", "machineset"),
-        CheckResult(category_id, category_name, f"{category_id}.pdb",
-                    "5.9 Pod Disruption Budget", "SKIPPED",
-                    "PDB data not in standard collection", "pdb"),
-        CheckResult(category_id, category_name, f"{category_id}.vol_mount",
-                    "5.10 Volume Mount Durations", "SKIPPED",
-                    "Requires Prometheus metrics not in standard collection", "metrics"),
     ]
 
 
@@ -549,6 +665,12 @@ def _evaluate_tsr_health_aggregate(category_data: dict, results: dict, category_
     checks += _evaluate_health_registry(results, category_id, category_name)
     checks += _evaluate_health_pod_restarts(category_data, category_id, category_name)
     checks += _evaluate_health_node_roles(nodes_data, category_id, category_name)
+    checks += _evaluate_pdb(category_data.get("pdb", {}), category_id, category_name)
+    checks += _evaluate_volume_mount_p99(
+        results.get("10_metrics", {}).get("volume_mount_p99", {}),
+        category_id,
+        category_name,
+    )
     checks += _evaluate_health_static_checks(category_id, category_name)
     checks += _evaluate_health_alert_breakdown(category_data, category_id, category_name)
     checks += _evaluate_health_dns(results, category_id, category_name)

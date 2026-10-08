@@ -15,10 +15,11 @@ Generated from `scripts/health_check/collect/[0-9][0-9]_*.sh`.
 | scheduler | `oc get scheduler cluster -o json` | 7.1 |
 | proxy | `oc get proxy cluster -o json` | 7.1 |
 | nodes | `oc get nodes -o json` | 7.1 |
-| nodes_wide | `$HC_CLI get nodes -o wide` | 7.1 |
+| nodes_wide | `"$HC_CLI" get nodes -o wide` | 7.1 |
 | csr | `oc get csr -o json` | 7.1 |
 | scc | `oc get scc -o json` | 7.1 |
 | oauth | `oc get oauth cluster -o json` | 7.1 |
+| insightsoperator | `oc get insightsoperator -A -o json` | 7.1 |
 
 ## 04_topology.sh — Chapter 7.2: Topology Assessment
 
@@ -39,22 +40,33 @@ Generated from `scripts/health_check/collect/[0-9][0-9]_*.sh`.
 | cluster_operators | `oc get co -o json` | 7.3 |
 | machineconfig | `oc get mc -o json` | 7.3 |
 | etcd_pods | `oc get pods -n openshift-etcd -o json` | 7.3 |
-| etcd_status | `$HC_CLI -n openshift-etcd get pods -o wide` | 7.3 |
+| etcd_status | `"$HC_CLI" -n openshift-etcd get pods -o wide` | 7.3 |
 | imageregistry | `oc get configs.imageregistry.operator.openshift.io cluster -o json` | 7.3 |
 | prometheus | `oc get prometheus -n openshift-monitoring -o json` | 7.3 |
 | prometheusrule | `oc get prometheusrule -n openshift-monitoring -o json` | 7.3 |
 | alertmanager | `oc get alertmanager -n openshift-monitoring -o json` | 7.3 |
 | ingresscontroller | `oc get ingresscontroller -n openshift-ingress-operator -o json` | 7.3 |
 | storageclass | `oc get storageclass -o json` | 7.3 |
+| volumesnapshotclass | `oc get volumesnapshotclass -o json` | 7.3 |
+| storageprofile | `oc get storageprofile -o json` | 7.3 |
 | pv | `oc get pv -o json` | 7.3 |
 | pvc | `oc get pvc -A -o json` | 7.3 |
+| csidriver | `oc get csidriver -o json` | 7.3 |
+| localvolume | `oc get localvolume -A -o json` | 7.3 |
 | network | `oc get network cluster -o json` | 7.3 |
 | clusternetwork | `oc get clusternetwork -o json` | 7.3 |
 | network_operator | `oc get network.operator cluster -o json` | 7.3 |
 | nncp | `oc get nncp -o json` | 7.3 |
+| nnce | `oc get nnce -o json` | 7.3 |
 | net_attach_def | `oc get net-attach-def -A -o json` | 7.3 |
+| metallb | `oc get metallb -A -o json` | 7.3 |
+| ipsecconfig | `oc get ipsecconfig -A -o json` | 7.3 |
+| sriovnetwork | `oc get sriovnetwork -A -o json` | 7.3 |
+| performanceprofile | `oc get performanceprofile -A -o json` | 7.3 |
 | dns_operator | `oc get dns.operator default -o json` | 7.3 |
 | dns_config | `oc get dns cluster -o json` | 7.3 |
+| dns_pods | `oc get pods -n openshift-dns -o json` | 7.3 |
+| featuregate | `oc get featuregate cluster -o json` | 7.3 |
 | crds | `oc get crd -o json` | 7.3 |
 | apirequestcounts | `oc get apirequestcounts -o json` | 7.3 |
 | validatingwebhooks | `oc get validatingwebhookconfigurations -o json` | 7.3 |
@@ -70,6 +82,8 @@ Generated from `scripts/health_check/collect/[0-9][0-9]_*.sh`.
 | cnv_pods | `oc get pods -n openshift-cnv -o json` | 7.4 |
 | cnv_vm | `oc get vm -A -o json` | 7.4 |
 | cnv_vmi | `oc get vmi -A -o json` | 7.4 |
+| cnv_cdi | `oc get cdi -n openshift-cnv -o json` | 7.4 |
+| cnv_virt_handler_ds | `oc get ds virt-handler -n openshift-cnv -o json` | 7.4 |
 | acm_multiclusterhub | `oc get multiclusterhub -n open-cluster-management -o json` | 7.4 |
 | acm_pods | `oc get pods -n open-cluster-management -o json` | 7.4 |
 | acs_central | `oc get central -n stackrox -o json` | 7.4 |
@@ -85,6 +99,12 @@ Generated from `scripts/health_check/collect/[0-9][0-9]_*.sh`.
 | serverless_kneventing | `oc get knativeeventing -A -o json` | 7.4 |
 | quay_registry | `oc get quayregistry -A -o json` | 7.4 |
 | datasciencecluster | `oc get datasciencecluster -A -o json` | 7.4 |
+| odf_storagecluster | `oc get storagecluster -A -o json` | 7.4 |
+| rhoso_controlplane | `oc get openstackcontrolplane -A -o json` | 7.4 |
+| mtv_controller | `oc get forkliftcontroller -A -o json` | 7.4 |
+| oadp_dpa | `oc get dataprotectionapplication -A -o json` | 7.4 |
+| oadp_csv | `oc get csv -n openshift-adp -o json` | 7.4 |
+| backupstoragelocation | `oc get backupstoragelocation -A -o json` | 7.4 |
 
 ## 07_cluster_health.sh — Chapter 7.5: Cluster Health Assessment
 
@@ -93,6 +113,7 @@ Generated from `scripts/health_check/collect/[0-9][0-9]_*.sh`.
 | nodes | `oc get nodes -o json` | 7.5 |
 | node_conditions | `oc get nodes -o json` | 7.5 |
 | pods_all | `oc get pods -A -o json` | 7.5 |
+| pdb | `oc get pdb -A -o json` | 7.5 |
 | master_nodes | `oc get nodes -l node-role.kubernetes.io/master -o json` | 7.5 |
 | clusterversion | `oc get clusterversion -o json` | 7.5 |
 | clusteroperators | `oc get clusteroperator -o json` | 7.5 |
@@ -106,6 +127,7 @@ Generated from `scripts/health_check/collect/[0-9][0-9]_*.sh`.
 |------------|---------|----------------|
 | resourcequota | `oc get resourcequota -A -o json` | 7.6 |
 | limitrange | `oc get limitrange -A -o json` | 7.6 |
+| networkpolicy | `oc get networkpolicy -A -o json` | 7.6 |
 | image_config | `oc get image.config.openshift.io cluster -o json` | 7.6 |
 | clusterversion | `oc get clusterversion -o json` | 7.6 |
 | top_nodes | `oc adm top nodes` | 7.6 |
@@ -117,6 +139,8 @@ Generated from `scripts/health_check/collect/[0-9][0-9]_*.sh`.
 | deploymentconfig | `oc get dc -A -o json` | 7.6 |
 | certificates | `oc get certificates -A -o json` | 7.6 |
 
+Live-only custom collector `node_image_gc` (kubelet HIGH + imageFs used percent) is not listed; it is not an `hc_capture_*` call.
+
 ## 09_security.sh — Chapter 7.7: Security and Compliance Assessment
 
 | Check Name | Command | Report Section |
@@ -127,8 +151,9 @@ Generated from `scripts/health_check/collect/[0-9][0-9]_*.sh`.
 | rolebindings | `oc get rolebinding -A -o json` | 7.7 |
 | compliance_scans | `oc get compliancescan -A -o json` | 7.7 |
 | compliance_suites | `oc get compliancesuite -A -o json` | 7.7 |
+| fileintegrity | `oc get fileintegrity -A -o json` | 7.7 |
 | namespaces | `oc get namespaces -o json` | 7.7 |
-| secrets_count | `$HC_CLI get secrets -A --no-headers` | 7.7 |
+| secrets_count | `"$HC_CLI" get secrets -A --no-headers` | 7.7 |
 | clusterrolebindings_admin | `oc get clusterrolebinding -o json` | 7.7 |
 
 ## 10_metrics.sh — Chapter 7.8: Metrics Collection

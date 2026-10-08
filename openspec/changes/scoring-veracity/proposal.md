@@ -1,5 +1,8 @@
 # Change Proposal: scoring-veracity
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 > **STATUS: ARCHIVED** (2026-08-25) into `openspec/specs/hc-report-engine/spec.md`
 > Plan: `cursor_plans/scoring_veracity_2026-08-25.md`
 

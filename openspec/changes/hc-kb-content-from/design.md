@@ -1,5 +1,8 @@
 # Design: hc-kb-content-from
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 `load_kb()` parses `content_from` as an exact canonical `check_id` in `entries` (not a glob, not `pattern_entries`).
 
 **Single hop.** If the target also has `content_from`, raise `ValueError` (chains and cycles).

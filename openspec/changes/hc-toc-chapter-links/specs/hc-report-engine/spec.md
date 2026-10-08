@@ -1,5 +1,8 @@
 # Health Check Report Engine (delta)
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 ## ADDED Requirements
 
 ### Requirement: Chapter 2 TOC is in-document links

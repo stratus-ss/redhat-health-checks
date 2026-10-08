@@ -1,5 +1,8 @@
 # Health Check Report Engine (`scoring-veracity` delta)
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 ## MODIFIED Requirements
 
 ### Requirement: CheckResult and Finding fields

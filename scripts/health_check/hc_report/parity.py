@@ -5,6 +5,7 @@ import json
 import re
 from pathlib import Path
 
+from hc_report.kb_loader import load_kb
 from hc_report.models import CheckResult
 
 _STATUS_MAP = {
@@ -241,6 +242,8 @@ def expand_with_parity_checks(
     existing_desc = {_normalize(check.description) for check in checks}
     runtime_ccx = _collect_runtime_ccx(results)
     tsr_runtime = load_tsr_runtime(tsr_runtime_path) if tsr_runtime_path else {}
+    citation_targets = load_kb().citation_targets
+    pending_refs: dict[str, list[str]] = {}
     expanded = list(checks)
 
     for entry in catalog:
@@ -253,6 +256,12 @@ def expand_with_parity_checks(
         check_id = str(entry.get("check_id", "")).strip()
         title = str(entry.get("title", "")).strip()
         if not check_id or not title:
+            continue
+        cited_canonical = citation_targets.get(check_id, "")
+        if cited_canonical:
+            tsr_ref = str(entry.get("tsr_ref", "")).strip()
+            if tsr_ref:
+                pending_refs.setdefault(cited_canonical, []).append(tsr_ref)
             continue
         if check_id in existing_ids:
             continue
@@ -267,9 +276,6 @@ def expand_with_parity_checks(
         tsr_ref = str(entry.get("tsr_ref", ""))
 
         status = "SKIPPED"
-        # Fallback evidence sentences below are detected by
-        # renderer._CATALOG_FALLBACK_MARKERS to suppress them from the
-        # client-facing Chapter 7 Result column.  Keep both sides in sync.
         if tsr_runtime_path is None:
             evidence = (
                 f"No TSR runtime data supplied for '{title}'. This check is mapped in the "
@@ -317,4 +323,22 @@ def expand_with_parity_checks(
         existing_ids.add(check_id)
         existing_desc.add(norm_title)
 
+    _apply_cited_refs(expanded, pending_refs)
     return expanded
+
+
+def _apply_cited_refs(checks: list[CheckResult], pending_refs: dict[str, list[str]]) -> None:
+    by_id = {check.check_id: check for check in checks}
+    for canonical_id, refs in pending_refs.items():
+        check = by_id.get(canonical_id)
+        if check is None:
+            continue
+        for ref in refs:
+            _append_tsr_ref(check, ref)
+
+
+def _append_tsr_ref(check: CheckResult, tsr_ref: str) -> None:
+    existing = [part for part in check.tsr_ref.split() if part]
+    if tsr_ref not in existing:
+        existing.append(tsr_ref)
+        check.tsr_ref = " ".join(existing)

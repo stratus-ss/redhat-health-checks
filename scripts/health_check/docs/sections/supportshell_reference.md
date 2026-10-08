@@ -10,7 +10,7 @@ The category scripts (`03_base_platform.sh` through `12_ccx.sh`) are intentional
 The scripts cannot be trivially shared because:
 
 1. **CLI differences** — `omc` is a drop-in for most `oc get` commands but does not support `oc exec`, `oc adm top`, or live Prometheus queries. The supportshell scripts handle these gracefully.
-2. **Category implementation differences** — both paths include `10_metrics.sh`, `11_hardware.sh`, and `12_ccx.sh`. Supportshell metrics/hardware collect static must-gather artifacts where the live path uses `oc exec` and `oc debug node`. `make check-hc-sync` diffs only the paired twins `03`–`09`.
+2. **Category implementation differences** — both paths include `10_metrics.sh` and `11_hardware.sh`, but the supportshell versions collect static must-gather artifacts where the live path uses `oc exec` and `oc debug node`.
 3. **Pre-flight** — The live path verifies cluster connectivity; the supportshell path verifies `omc` has a must-gather loaded.
 
 The JSON output format is identical between both paths, making downstream tooling agnostic to the collection method.
@@ -24,9 +24,9 @@ The JSON output format is identical between both paths, making downstream toolin
 | `05_components.sh` | 7.3 | Same as live path |
 | `06_layered.sh` | 7.4 | Same as live path |
 | `07_cluster_health.sh` | 7.5 | No live alerts — `firing_alerts.json` will be `_hc_not_found` |
-| `08_day2.sh` | 7.6 | No `oc adm top` — resource utilisation unavailable |
+| `08_day2.sh` | 7.6 | No `oc adm top` — resource utilisation unavailable. Node kubelet proxy image-GC stats are live-only. |
 | `09_security.sh` | 7.7 | Same as live path |
-| `10_metrics.sh` | 7.8 | Static Prometheus/etcd configs only (no live queries) |
+| `10_metrics.sh` | 7.8 | Static Prometheus/etcd configs only (no live queries). etcd compaction PromQL and etcd log phrase counts are live-only and omitted on supportshell. |
 | `11_hardware.sh` | 7.9 | Extracts DMI/CPU/memory from per-node `sysinfo.tgz` archives in the must-gather (no `oc debug node`). Disk rotational detection is unavailable offline — disk checks are omitted when disk data is absent |
 | `12_ccx.sh` | Advisory | Optional CCX payload ingestion from `HC_CCX_RULES_FILE` |
 
@@ -71,6 +71,6 @@ The rendered report uses three identifier types:
 |---------|---------|---------|
 | **Finding ID** | `6.2.2.3` | Report §6.1 table "Finding" column; `make hc-investigate FINDING_ID=6.2.2.3` |
 | **Check ID** | `7.3.etcd.log_errors` | Evaluator-assigned machine key; `make hc-investigate CHECK_ID=7.3.etcd.log_errors` |
-| **TSR ref** | `3.5.7` | TSR HTML tree section number from `CheckResult.tsr_ref` (plain text for manual lookup). Printed as `**TSR ref:**` under the §6.2 heading. `n/a` when no dotted section number exists. Multiple numbers are space-separated when a grouped finding has more than one leaf. Not taken from the finding title. |
+| **TSR ref** | `3.5.7` | Human/TSR section label shown under the finding heading for cross-reference |
 
 In the §6.1 Critical Findings table, the Finding column format is `{finding_id} — {display_title}`. In §6.2 each finding heading is `#### {finding_id}. {display_title}` with **Check ID** and **TSR ref** lines immediately below.

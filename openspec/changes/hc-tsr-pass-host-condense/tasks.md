@@ -1,5 +1,8 @@
 # Tasks
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 - [x] Author OpenSpec delta (this change)
 - [x] `_condense_identical_pass_hosts` + wire before clip in `_extract_leaf_check`
 - [x] Allowlisted tests in `tests/test_hc_chunk_g_evidence.py`

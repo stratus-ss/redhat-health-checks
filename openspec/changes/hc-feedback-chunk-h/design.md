@@ -1,5 +1,8 @@
 # Design: hc-feedback-chunk-h
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 Renderer-only assembly plus one KB impact triple.
 
 - `_STATUS_TAG_RE` recognizes `SUPPORT LIMITATION` before `LIMITATION`.

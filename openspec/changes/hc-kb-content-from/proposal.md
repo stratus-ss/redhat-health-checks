@@ -1,5 +1,8 @@
 # Change Proposal: hc-kb-content-from
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 > **STATUS: ARCHIVED** (merged into `openspec/specs/hc-report-engine/spec.md`)
 > Plan: `cursor_plans/hc_kb_content_from_2026-08-22.md`
 > Parent: `cursor_plans/hc_kb_catalog_audit_2026-08-22.md`

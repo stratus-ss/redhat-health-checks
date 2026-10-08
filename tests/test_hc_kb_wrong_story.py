@@ -19,6 +19,11 @@ from hc_report.kb_loader import load_kb
 # Mutant: Skip one rewrite
 # Contract: public
 
+def _published_entry(knowledge_base, check_id: str):
+    target = knowledge_base.cited_target(check_id) or check_id
+    return knowledge_base.get_entry(target)
+
+
 CHUNK_D_INVENTORY = (
     "7.3.tsr.3_7_2_monitoring_storage_type",
     "7.3.tsr.3_9_3_dynamic_storage_provisioner_plugins",
@@ -42,7 +47,7 @@ CHUNK_D_INVENTORY = (
 
 def test_monitoring_storage_description_is_mode_neutral() -> None:
     knowledge_base = load_kb()
-    entry = knowledge_base.get_entry("7.3.tsr.3_7_2_monitoring_storage_type")
+    entry = _published_entry(knowledge_base, "7.3.tsr.3_7_2_monitoring_storage_type")
     assert entry is not None
     description = entry.description
     recommendation = entry.recommendation
@@ -55,7 +60,7 @@ def test_monitoring_storage_description_is_mode_neutral() -> None:
 
 def test_oadp_recommendation_covers_non_olm() -> None:
     knowledge_base = load_kb()
-    entry = knowledge_base.get_entry("7.4.tsr.4_8_5_3_1_oadp_operator")
+    entry = _published_entry(knowledge_base, "7.4.tsr.4_8_5_3_1_oadp_operator")
     assert entry is not None
     recommendation = entry.recommendation.casefold()
     assert "csv" in recommendation
@@ -78,7 +83,7 @@ def test_oadp_recommendation_covers_non_olm() -> None:
 
 def test_node_disk_and_csi_39_5_untouched() -> None:
     knowledge_base = load_kb()
-    node_disk = knowledge_base.get_entry("7.4.tsr.4_8_1_3_4_node_disk")
+    node_disk = _published_entry(knowledge_base, "7.4.tsr.4_8_1_3_4_node_disk")
     assert node_disk is not None
     # Chunk G already replaced the pre-G disk-space wrong-story. D must leave
     # that row as G wrote it (virt default StorageClass), not rewrite it.
@@ -86,7 +91,7 @@ def test_node_disk_and_csi_39_5_untouched() -> None:
         "is-default-virt-class" in node_disk.description
         or "default StorageClass for virtualization" in node_disk.description
     )
-    csi = knowledge_base.get_entry("7.3.tsr.3_9_5_csi_drivers")
+    csi = _published_entry(knowledge_base, "7.3.tsr.3_9_5_csi_drivers")
     assert csi is not None
     assert "Cluster CSI Driver operator" in csi.description
     assert "third-party storage dependency" in csi.description
@@ -96,7 +101,7 @@ def test_node_disk_and_csi_39_5_untouched() -> None:
 def test_chunk_d_inventory_descriptions_present() -> None:
     knowledge_base = load_kb()
     for check_id in CHUNK_D_INVENTORY:
-        entry = knowledge_base.get_entry(check_id)
+        entry = _published_entry(knowledge_base, check_id)
         assert entry is not None, check_id
         assert entry.description.strip(), check_id
         assert entry.recommendation.strip(), check_id

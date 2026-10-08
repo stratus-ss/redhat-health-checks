@@ -1,5 +1,8 @@
 # Change Proposal: hc-draft-exec-inplace
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 > **STATUS: ARCHIVED** (merged into `openspec/specs/hc-report-engine/spec.md`)
 > Plan: `cursor_plans/hc_draft_exec_inplace_2026-08-25.md`
 

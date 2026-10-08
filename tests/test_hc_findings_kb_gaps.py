@@ -22,6 +22,11 @@ from hc_report.renderer import _build_findings_sections
 # Mutant: Skip filling one TOML row
 # Contract: public
 
+def _published_entry(knowledge_base, check_id: str):
+    target = knowledge_base.cited_target(check_id) or check_id
+    return knowledge_base.get_entry(target)
+
+
 CHUNK_C_INVENTORY = (
     "7.4.tsr.4_1_2_logging_storage_type",
     "7.4.tsr.4_1_4_logging_pod_status",
@@ -85,15 +90,15 @@ def test_missing_impact_renders_needs_review() -> None:
 def test_chunk_c_inventory_kb_fields_present() -> None:
     knowledge_base = load_kb()
     for check_id in CHUNK_C_INVENTORY:
-        entry = knowledge_base.get_entry(check_id)
+        entry = _published_entry(knowledge_base, check_id)
         assert entry is not None, check_id
         assert entry.description.strip(), check_id
         assert entry.recommendation.strip(), check_id
         assert entry.recommendation.strip() != NEEDS_REVIEW_MARKER, check_id
         assert entry.impact.strip(), check_id
 
-    logging_storage = knowledge_base.get_entry("7.4.tsr.4_1_2_logging_storage_type")
-    bsod_posture = knowledge_base.get_entry("7.4.tsr.4_8_4_2_windows_bsod_risk_posture")
+    logging_storage = _published_entry(knowledge_base, "7.4.tsr.4_1_2_logging_storage_type")
+    bsod_posture = _published_entry(knowledge_base, "7.4.tsr.4_8_4_2_windows_bsod_risk_posture")
     assert logging_storage is not None
     assert bsod_posture is not None
     assert "lokistack" in logging_storage.recommendation.lower()

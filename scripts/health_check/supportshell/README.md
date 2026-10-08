@@ -354,9 +354,6 @@ The flow is identical to the OCP-V pipeline: markdown → `pandoc` (branded CSS 
 PDFs are written to:
 - `output/Health_Check_Report/PDFs/` — customer-facing report (nested reports keep a cluster subdirectory, e.g. `PDFs/<cluster_dir>/…`)
 
-HTML is written to:
-- `output/Health_Check_Report/HTML/` — collapsible report (`make hc-html`; same `REPORT=` / `FORCE=1` rules)
-
 Unset `REPORT` discovers all report markdown (prefers `_pruned.md`). `REPORT=path.md` exports that one file. A source outside the report tree maps by basename. `FORCE=1` overwrites an existing basename dest.
 
 If the container image hasn't been built yet, `make hc-pdf` will build it automatically first.
@@ -388,7 +385,7 @@ The category scripts (`03_base_platform.sh` through `12_ccx.sh`) are intentional
 The scripts cannot be trivially shared because:
 
 1. **CLI differences** — `omc` is a drop-in for most `oc get` commands but does not support `oc exec`, `oc adm top`, or live Prometheus queries. The supportshell scripts handle these gracefully.
-2. **Category implementation differences** — both paths include `10_metrics.sh`, `11_hardware.sh`, and `12_ccx.sh`. Supportshell metrics/hardware collect static must-gather artifacts where the live path uses `oc exec` and `oc debug node`. `make check-hc-sync` diffs only the paired twins `03`–`09`.
+2. **Category implementation differences** — both paths include `10_metrics.sh` and `11_hardware.sh`, but the supportshell versions collect static must-gather artifacts where the live path uses `oc exec` and `oc debug node`.
 3. **Pre-flight** — The live path verifies cluster connectivity; the supportshell path verifies `omc` has a must-gather loaded.
 
 The JSON output format is identical between both paths, making downstream tooling agnostic to the collection method.
@@ -402,9 +399,9 @@ The JSON output format is identical between both paths, making downstream toolin
 | `05_components.sh`     | 7.3      | Same as live path                                                                                                                                                                                         |
 | `06_layered.sh`        | 7.4      | Same as live path                                                                                                                                                                                         |
 | `07_cluster_health.sh` | 7.5      | No live alerts — `firing_alerts.json` will be `_hc_not_found`                                                                                                                                             |
-| `08_day2.sh`           | 7.6      | No `oc adm top` — resource utilisation unavailable                                                                                                                                                        |
+| `08_day2.sh`           | 7.6      | No `oc adm top` — resource utilisation unavailable. Node kubelet proxy image-GC stats are live-only.                                                                                                      |
 | `09_security.sh`       | 7.7      | Same as live path                                                                                                                                                                                         |
-| `10_metrics.sh`        | 7.8      | Static Prometheus/etcd configs only (no live queries)                                                                                                                                                     |
+| `10_metrics.sh`        | 7.8      | Static Prometheus/etcd configs only (no live queries). etcd compaction PromQL and etcd log phrase counts are live-only and omitted on supportshell.                                                       |
 | `11_hardware.sh`       | 7.9      | Extracts DMI/CPU/memory from per-node `sysinfo.tgz` archives in the must-gather (no `oc debug node`). Disk rotational detection is unavailable offline — disk checks are omitted when disk data is absent |
 | `12_ccx.sh`            | Advisory | Optional CCX payload ingestion from `HC_CCX_RULES_FILE`                                                                                                                                                   |
 
@@ -445,11 +442,11 @@ Traces a finding or check from the generated report back to the exact raw collec
 
 The rendered report uses three identifier types:
 
-| ID type        | Example               | Used by                                                                                                                                                                                                                                                                                                     |
-|----------------|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Finding ID** | `6.2.2.3`             | Report §6.1 table "Finding" column; `make hc-investigate FINDING_ID=6.2.2.3`                                                                                                                                                                                                                                |
-| **Check ID**   | `7.3.etcd.log_errors` | Evaluator-assigned machine key; `make hc-investigate CHECK_ID=7.3.etcd.log_errors`                                                                                                                                                                                                                          |
-| **TSR ref**    | `3.5.7`               | TSR HTML tree section number from `CheckResult.tsr_ref` (plain text for manual lookup). Printed as `**TSR ref:**` under the §6.2 heading. `n/a` when no dotted section number exists. Multiple numbers are space-separated when a grouped finding has more than one leaf. Not taken from the finding title. |
+| ID type        | Example               | Used by                                                                            |
+|----------------|-----------------------|------------------------------------------------------------------------------------|
+| **Finding ID** | `6.2.2.3`             | Report §6.1 table "Finding" column; `make hc-investigate FINDING_ID=6.2.2.3`       |
+| **Check ID**   | `7.3.etcd.log_errors` | Evaluator-assigned machine key; `make hc-investigate CHECK_ID=7.3.etcd.log_errors` |
+| **TSR ref**    | `3.5.7`               | Human/TSR section label shown under the finding heading for cross-reference        |
 
 In the §6.1 Critical Findings table, the Finding column format is `{finding_id} — {display_title}`. In §6.2 each finding heading is `#### {finding_id}. {display_title}` with **Check ID** and **TSR ref** lines immediately below.
 
@@ -488,7 +485,7 @@ Each target below runs one discrete step and can be re-run on its own — useful
 | `clean-hc`                    | Remove health check pipeline output                                                                                                                                                                                                                 |
 | `check-hc-sync`               | Verify `collect/` and `supportshell/` shared scripts 03–09 are in sync                                                                                                                                                                              |
 
-**Report ID conventions:** Finding IDs (`6.2.x.y`) appear in §6.1/§6.2 headings and are used with `FINDING_ID=...`. Machine Check IDs (e.g. `7.3.etcd.log_errors`) appear under each §6.2 heading as `**Check ID:**` and are used with `CHECK_ID=...`. TSR ref (e.g. `3.5.7`) is the TSR HTML tree section number from `CheckResult.tsr_ref` (plain text, `n/a` when none, space-separated when grouped) — not parsed from the finding title.
+**Report ID conventions:** Finding IDs (`6.2.x.y`) appear in §6.1/§6.2 headings and are used with `FINDING_ID=...`. Machine Check IDs (e.g. `7.3.etcd.log_errors`) appear under each §6.2 heading as `**Check ID:**` and are used with `CHECK_ID=...`. TSR ref (e.g. `3.5.7`) is the human-readable section label for cross-referencing the TSR report.
 
 ###### KB maintenance targets
 
@@ -539,28 +536,26 @@ scripts/health_check/hc_report/
   models.py        — CheckResult, Finding dataclasses (Finding carries impact/impact_scope/impact_detail)
   loader.py        — load_results() (manifest or directory scan)
   metadata.py      — derive_metadata() from collected JSON
-  registry.py      — native category evaluators 03–11 (`get_core_registry`)
-  evaluators/      — `evaluate_checks()` runs the registry then `parity.py` for `extended`/`advisory`
-                     (`platform`, `topology`, `components` plus infra/network/misc helpers,
-                     `layered`, `health`, `day2`, `security`, `metrics`, `hardware`)
+  registry.py      — check-profile dispatch (core/extended/advisory)
+  evaluators/      — per-category check functions (12 modules plus `_common.py` and `_shared_checks.py`)
   parity.py        — TSR/CCX additive parity expansion
-  tsr_parser.py    — parse TSR HTML exports into parity status inputs; FAIL/WARNING Result keeps only important status lines before the 32_000 clip
+  tsr_parser.py    — parse TSR HTML exports into parity status inputs
   catalogs/        — tsr_ccx_crosswalk.json (+ README)
   kb/               — external TOML knowledge base: descriptions, recommendations,
                        optional verification, impact metadata, and version-aware doc
                        links, keyed by check_id. Sparse `content_from` rows are aliases
-                       (they inherit verification); see root README Knowledge Base.
+                       (they inherit verification; new aliases omit Chapter 6); see root README Knowledge Base.
   kb_loader.py      — loads/version-resolves the KB (including `content_from` aliases);
                        get_recommendation() joins optional verification with a bold
                        **Verification:** line; get_links()/get_impact()
   link_review/      — suggest + HTTP-check KB documentation URLs (does not rewrite TOMLs)
-  build_crosswalk_catalog.py — regenerates catalogs/tsr_ccx_crosswalk.json (leaf checks only; skips tree-view group headers)
-  findings.py      — derive_findings() / derive_findings_with_tsr(); recommendation/impact via kb_loader.py
-  omit_findings.py — optional Chapter 6 filter → `{stem}_pruned.md`
+  build_crosswalk_catalog.py — regenerates catalogs/tsr_ccx_crosswalk.json
+  findings.py      — derive_findings(); resolves recommendation/impact via kb_loader.py,
+                       falling back to notes.py, then a generic [NEEDS REVIEW] placeholder
   renderer.py      — render_report() template slot substitution; emits a conditional
                        "Level of Impact" block per finding when KB impact data is present
-  notes.py         — `get_note()` fallback links used by the renderer when KB links are empty
-  cli.py           — argument parsing, orchestration (`cli.main`)
+  notes.py         — KB-first per-check documentation links; small _CHECK_NOTES fallback table
+  cli.py           — argument parsing, orchestration
 ```
 
 Code quality is enforced via `ruff.toml` (C901 ≤ 15, max-branches ≤ 15, max-statements ≤ 50).

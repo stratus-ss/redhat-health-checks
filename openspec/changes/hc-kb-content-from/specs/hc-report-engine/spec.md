@@ -1,5 +1,8 @@
 # Health Check Report Engine (`content_from` delta)
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 ## ADDED Requirements
 
 ### Requirement: KB content_from alias

@@ -13,6 +13,7 @@ Captures the foundational cluster version and platform configuration.
 | `nodes_wide.json` | `oc get nodes -o wide` | Node IPs, OS images, kernel versions |
 | `scc.json` | `oc get scc` | Security Context Constraints — default vs custom |
 | `oauth.json` | `oc get oauth cluster` | Identity providers configured |
+| `insightsoperator.json` | `oc get insightsoperator -A` | Insights Operator CR — remote health reporting |
 
 ### `04_topology.sh` — Chapter 7.2
 
@@ -44,11 +45,22 @@ Core component health — monitoring, storage, networking, ingress.
 | `alertmanager.json` | `oc get alertmanager -n openshift-monitoring` | Alertmanager configuration |
 | `ingresscontroller.json` | `oc get ingresscontroller -n openshift-ingress-operator` | Ingress controller replicas and config |
 | `storageclass.json` | `oc get storageclass` | Available storage classes and defaults |
+| `volumesnapshotclass.json` | `oc get volumesnapshotclass` | CSI VolumeSnapshotClass inventory (optional CRD) |
+| `storageprofile.json` | `oc get storageprofile` | CDI StorageProfile clone strategy (optional CRD) |
 | `pv.json` | `oc get pv` | Persistent volume inventory and states |
 | `pvc.json` | `oc get pvc -A` | PVC states across all namespaces |
+| `csidriver.json` | `oc get csidriver` | CSI driver inventory |
+| `localvolume.json` | `oc get localvolume -A` | Local Storage Operator volumes |
 | `network.json` | `oc get network cluster` | Cluster network config (CNI, CIDR ranges) |
 | `clusternetwork.json` | `oc get clusternetwork` | OCP 3.x SDN object — marks `not-installed` on OCP 4.x |
 | `network_operator.json` | `oc get network.operator cluster` | Network operator configuration |
+| `nnce.json` | `oc get nnce` | NMState NodeNetworkConfigurationEnactment (optional CRD) |
+| `metallb.json` | `oc get metallb -A` | MetalLB load balancer instances |
+| `ipsecconfig.json` | `oc get ipsecconfig -A` | IPsec configuration (if installed) |
+| `sriovnetwork.json` | `oc get sriovnetwork -A` | SR-IOV network definitions |
+| `performanceprofile.json` | `oc get performanceprofile -A` | Node performance profiles (low-latency tuning) |
+| `dns_pods.json` | `oc get pods -n openshift-dns` | DNS pods status across cluster |
+| `featuregate.json` | `oc get featuregate cluster` | Enabled feature gates and tech preview features |
 
 ### `06_layered.sh` — Chapter 7.4
 
@@ -56,15 +68,17 @@ Optional Red Hat products. Every command here may produce `_hc_not_found` if the
 
 | Product | Files collected |
 |---------|----------------|
-| **OpenShift Virtualization (CNV)** | `cnv_hyperconverged.json`, `cnv_kubevirt.json`, `cnv_pods.json`, `cnv_vm.json`, `cnv_vmi.json` |
+| **OpenShift Virtualization (CNV)** | `cnv_hyperconverged.json`, `cnv_kubevirt.json`, `cnv_pods.json`, `cnv_vm.json`, `cnv_vmi.json`, `cnv_cdi.json`, `cnv_virt_handler_ds.json` |
 | **Advanced Cluster Management (ACM)** | `acm_multiclusterhub.json`, `acm_pods.json` |
 | **Advanced Cluster Security (ACS)** | `acs_central.json`, `acs_pods.json` |
 | **Logging (ClusterLogging / Loki)** | `logging_clusterlogging.json`, `logging_loki.json`, `logging_pods.json` |
 | **OpenShift Pipelines (Tekton)** | `pipelines_tektonconfig.json`, `pipelines_pods.json` |
 | **Service Mesh (Istio)** | `servicemesh_smcp.json`, `servicemesh_pods.json` |
-| **OpenShift Serverless (Knative)** | `serverless_knserving.json`, `serverless_kneventing.json` |
-| **Quay Registry** | `quay_registry.json` |
-| **OpenShift AI / Data Science** | `datasciencecluster.json` |
+| **OpenShift Data Foundation (ODF)** | `odf_storagecluster.json` |
+| **Red Hat OpenStack Services (RHOSO)** | `rhoso_controlplane.json` |
+| **Migration Toolkit for Virtualization (MTV)** | `mtv_controller.json` |
+| **Quay Registry** | `quay_registry.json`, `quay_pods.json` |
+| **OADP / Velero** | `oadp_dpa.json`, `oadp_csv.json`, `backupstoragelocation.json` |
 
 ### `07_cluster_health.sh` — Chapter 7.5
 
@@ -75,6 +89,7 @@ Runtime health — alerts, pod restarts, node conditions.
 | `nodes.json` | `oc get nodes` | Kubelet version consistency check |
 | `node_conditions.json` | `oc get nodes` | NotReady, MemoryPressure, DiskPressure conditions |
 | `pods_all.json` | `oc get pods -A` | All pods — used to detect high restart counts |
+| `pdb.json` | `oc get pdb -A` | PodDisruptionBudgets across all namespaces |
 | `master_nodes.json` | `oc get nodes -l node-role.kubernetes.io/master` | Master schedulability check |
 | `clusterversion.json` | `oc get clusterversion` | Current version and update state |
 | `clusteroperators.json` | `oc get clusteroperator` | Degraded operator check |
@@ -88,10 +103,13 @@ Day-2 operational hygiene — quotas, upgrade history, resource utilization.
 |------|---------|---------|
 | `resourcequota.json` | `oc get resourcequota -A` | Namespace quota configuration |
 | `limitrange.json` | `oc get limitrange -A` | Limit range configuration |
+| `networkpolicy.json` | `oc get networkpolicy -A` | NetworkPolicy list for orphan labeled selectors |
 | `image_config.json` | `oc get image.config.openshift.io cluster` | Image pruning policy |
+| `alertmanager_receivers.json` | `oc -n openshift-monitoring get secret alertmanager-main -o json` then stdlib base64-decode in memory | Redacted Alertmanager `receiver_names` only (no decoded YAML or URLs) |
 | `clusterversion.json` | `oc get clusterversion` | Full upgrade history |
 | `top_nodes.json` | `oc adm top nodes` | Current CPU/memory utilization per node |
 | `top_pods.json` | `oc adm top pods -A --sort-by=memory` | Top memory consumers across cluster |
+| `node_image_gc.json` | `oc get --raw` node proxy `configz` + `stats/summary` (live only) | Per-node kubelet image-GC HIGH, imageFs used percent, plus `system_reserved_memory` and `auto_sizing_reserved` excerpts (no raw proxy dumps) |
 | `apiserver.json` | `oc get apiserver cluster` | API server TLS and audit config |
 | `proxy.json` | `oc get proxy cluster` | Cluster-wide proxy configuration |
 | `namespaces.json` | `oc get namespaces` | Total namespace count (sprawl check) |
@@ -108,29 +126,40 @@ Security posture — SCCs, OAuth, RBAC, compliance operator (if installed).
 | `rolebindings.json` | `oc get rolebinding -A` | Namespace-level role bindings |
 | `compliance_scans.json` | `oc get compliancescan -A` | Compliance Operator scan results (if installed) |
 | `compliance_suites.json` | `oc get compliancesuite -A` | Compliance suite configurations (if installed) |
+| `fileintegrity.json` | `oc get fileintegrity -A` | File Integrity Operator instances (if installed) |
 | `namespaces.json` | `oc get namespaces` | Pod Security Admission labels per namespace |
 | `secrets_count.json` | `oc get secrets -A --no-headers` | Secret inventory by namespace (count only — no content) |
 | `clusterrolebindings_admin.json` | `oc get clusterrolebinding` | Used to audit cluster-admin grants |
 
 ### `10_metrics.sh` — Chapter 7.8
 
-Live PromQL via `oc exec` into Thanos querier, plus `etcdctl` endpoint probes. Needs `python3` to URL-encode queries. Missing Thanos writes `_hc_error` for that check.
+Live Prometheus/Thanos PromQL, etcd log phrase counts, and etcdctl endpoint status. All commands are read-only.
 
-| File | Source | Purpose |
-|------|--------|---------|
-| `node_cpu_requests_pct.json` / `node_memory_requests_pct.json` | PromQL | Node request vs allocatable |
-| `node_cpu_limits_pct.json` / `node_memory_limits_pct.json` | PromQL | Node limit vs allocatable |
-| `etcd_disk_wal_fsync_p99.json` / `etcd_disk_backend_p99.json` | PromQL | etcd disk latency |
-| `etcd_leader_changes_1h.json` / `etcd_db_size_bytes.json` / `etcd_db_size_in_use.json` | PromQL | etcd leadership and DB size |
-| `etcd_proposals_failed.json` / `etcd_heartbeat_failures.json` | PromQL | etcd proposal/heartbeat health |
-| `apiserver_request_latency_p99.json` / `apiserver_error_rate.json` | PromQL | API server latency and errors |
-| `cert_expiry_days.json` | PromQL | Certificate days to expiry |
-| `etcd_endpoint_health.json` / `etcd_endpoint_status.json` | `etcdctl` via exec | etcd member health |
-| `node_memory_working_set_pct.json` / `pvc_utilization_pct.json` | PromQL | Working set and PVC fill |
+| File | Command | Purpose |
+|------|---------|---------|
+| `node_cpu_requests_pct.json` | PromQL via Thanos querier | Node CPU requests as % of allocatable |
+| `node_memory_requests_pct.json` | PromQL via Thanos querier | Node memory requests as % of allocatable |
+| `node_cpu_limits_pct.json` | PromQL via Thanos querier | Node CPU limits as % of allocatable |
+| `node_memory_limits_pct.json` | PromQL via Thanos querier | Node memory limits as % of allocatable |
+| `etcd_disk_wal_fsync_p99.json` | PromQL via Thanos querier | etcd WAL fsync P99 per pod |
+| `etcd_disk_backend_p99.json` | PromQL via Thanos querier | etcd backend commit P99 per pod |
+| `etcd_leader_changes_1h.json` | PromQL via Thanos querier | etcd leader changes in the last hour |
+| `etcd_db_size_bytes.json` | PromQL via Thanos querier | etcd MVCC DB size |
+| `etcd_db_size_in_use.json` | PromQL via Thanos querier | etcd MVCC DB size in use |
+| `etcd_proposals_failed.json` | PromQL via Thanos querier | Failed raft proposals in the last hour |
+| `etcd_heartbeat_failures.json` | PromQL via Thanos querier | Heartbeat send-failure increase over 1h |
+| `etcd_compaction_p95.json` | PromQL via Thanos querier | etcd compaction p95 (live only) |
+| `etcd_log_phrase_counts.json` | `oc logs` etcd 6h, counts only | Three TSR log phrases per member (live only) |
+| `apiserver_request_latency_p99.json` | PromQL via Thanos querier | API server request P99 latency |
+| `apiserver_error_rate.json` | PromQL via Thanos querier | API server 5xx rate |
+| `cert_expiry_days.json` | PromQL via Thanos querier | Client certificate days to expiry |
+| `etcd_endpoint_health.json` | `etcdctl endpoint health` | Cluster endpoint health |
+| `etcd_endpoint_status.json` | `etcdctl endpoint status` | Cluster endpoint status and DB size |
+| `node_memory_working_set_pct.json` | PromQL via Thanos querier | Node memory working set as % of allocatable |
+| `pvc_utilization_pct.json` | PromQL via Thanos querier | PVC used/capacity percent |
+| `volume_mount_p99.json` | PromQL via Thanos querier | Kubelet volume mount p99 duration |
 
-### `11_hardware.sh` — Chapter 7.9
-
-Per-node inventory via `oc debug node` (slowest live step). Writes `node_hw_<short_name>.json`. Needs `python3` to parse debug output. Failed debug writes `_hc_error`.
+`etcd_compaction_p95.json` and `etcd_log_phrase_counts.json` are live-only. Supportshell omits them (`omc` cannot exec PromQL or `oc logs`). Collect does not run `etcdctl compact`.
 
 ### `12_ccx.sh` — Advisory Rule Payload (optional)
 

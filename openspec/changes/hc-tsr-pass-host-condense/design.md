@@ -1,5 +1,8 @@
 # Design: TSR identical PASS-host condensation
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 `_extract_leaf_check` already strips HTML then clips Result text at 32_000
 characters. Large clusters emit one host block per node (Chrony 1.5.7.2). The
 WARNING/LIMITATION line is early; identical PASS workers fill the buffer.

@@ -1,5 +1,8 @@
 # Change Proposal: hc-omit-findings
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 > **STATUS: ARCHIVED**
 > Merged into `openspec/specs/hc-report-engine/spec.md` on 2026-08-25.
 > Plan: `cursor_plans/hc_omit_findings_2026-08-25.md`

@@ -31,17 +31,6 @@ _SUMMARY_MAX_LENGTH = 220
 _SUMMARY_MIN_SENTENCE_CHARS = 40
 _SUMMARY_MIN_USABLE_CHARS = 8
 _UNUSABLE_SUMMARY_VALUES = frozenset({"n/a", "none", "unknown", "na"})
-# Operator-facing catalog-fallback sentences emitted by parity.py
-# (expand_with_parity_checks / _resolve_ccx_status).  They stay on
-# CheckResult.evidence (audit JSON) but must not appear in Chapter 7 Result.
-# Keep in sync with parity.py — search for these literals there when adding
-# a new fallback message.
-_CATALOG_FALLBACK_MARKERS = (
-    "No TSR runtime data supplied",
-    "was not found in the supplied TSR HTML export",
-    "--ccx-baseline-status is enabled",
-    "has no live data available",
-)
 
 
 def _md_table_cell(text: str) -> str:
@@ -110,9 +99,6 @@ def _clean_evidence_for_cell(text: str) -> str:
     """
     if not text:
         return ""
-    for marker in _CATALOG_FALLBACK_MARKERS:
-        if marker in text:
-            return ""
     body = _normalize_evidence_body(text)
     cleaned_lines: list[str] = []
     for line in body.splitlines():
@@ -351,9 +337,21 @@ def _build_cluster_id_table(meta: dict) -> str:
     return "\n".join(rows)
 
 
+def _include_in_chapter7(check: CheckResult) -> bool:
+    knowledge_base = load_kb()
+    if knowledge_base.cited_target(check.check_id):
+        return False
+    entry = knowledge_base.get_entry(check.check_id)
+    if entry is None:
+        return True
+    return not entry.content_from
+
+
 def _build_stats_rows(checks: list[CheckResult]) -> str:
     checks_by_category: dict[str, list[CheckResult]] = defaultdict(list)
     for check in checks:
+        if not _include_in_chapter7(check):
+            continue
         checks_by_category[check.category_id].append(check)
 
     category_names = {category_id: name for _, (category_id, name) in _CATEGORY_MAP.items()}
@@ -381,7 +379,11 @@ def _build_check_results_table(
     ocp_version: str = "latest",
 ) -> str:
     """Render one 2-column table per check."""
-    category_checks = [check for check in checks if check.category_id == category_id]
+    category_checks = [
+        check
+        for check in checks
+        if check.category_id == category_id and _include_in_chapter7(check)
+    ]
     if not category_checks:
         return "_No data collected for this category._"
 
@@ -436,7 +438,7 @@ def _build_findings_sections(findings: list[Finding], ocp_version: str = "latest
             continue
         sections.append(f"### {labels[priority]}\n")
         for finding in priority_findings:
-            display, _unused_title_tsr = _split_finding_title(finding.title)
+            display, tsr = _split_finding_title(finding.title)
             check_id = finding.check_id or "n/a"
             sections.append(f"#### {finding.id}. {display}\n")
             if finding.member_check_ids:
@@ -444,7 +446,7 @@ def _build_findings_sections(findings: list[Finding], ocp_version: str = "latest
                 sections.append(f"**Check ID:** {member_ids}")
             else:
                 sections.append(f"**Check ID:** `{check_id}`")
-            sections.append(f"**TSR ref:** {finding.tsr_ref.strip() or 'n/a'}\n")
+            sections.append(f"**TSR ref:** {tsr}\n")
             kb_desc = knowledge_base.get_description(check_id) if check_id != "n/a" else ""
             if kb_desc:
                 sections.append(f"**Description:**\n\n{kb_desc}\n")

@@ -1,5 +1,8 @@
 # Change Proposal: hc-feedback-chunk-h
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 > **STATUS: PROPOSED** (not archived)
 > Plan: `cursor_plans/hc_feedback_chunk_h_2026-08-21.md`
 > Parent: `cursor_plans/hc_consultant_feedback_master_2026-08-20.md`

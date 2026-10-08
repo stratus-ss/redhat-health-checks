@@ -1,5 +1,8 @@
 # Design: scoring veracity
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 Python evaluators remain the scorer. This change adjusts status assignment for named checks and adds `CheckResult.scoring_basis`.
 
 Chapter 7 renders a **Scoring** row only for FAIL and WARNING: `Doc-backed` when `scoring_basis == "doc_backed"`, otherwise `Engine policy` (including empty).

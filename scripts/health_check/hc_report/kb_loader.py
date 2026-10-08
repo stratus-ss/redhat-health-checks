@@ -97,6 +97,15 @@ class KBEntry:
     links: dict[str, str] = field(default_factory=dict)
     is_pattern: bool = False
     content_from: str = ""
+    citations: tuple["KBCitation", ...] = ()
+
+
+@dataclass(frozen=True)
+class KBCitation:
+    check_id: str
+    include_in_findings: bool = True
+    finding_group: str = ""
+    finding_group_title: str = ""
 
 
 @dataclass
@@ -104,7 +113,13 @@ class KnowledgeBase:
     entries: dict[str, KBEntry]
     active_versions: list[str]
     pattern_entries: list[tuple[re.Pattern, KBEntry]] = field(default_factory=list)
+    citation_targets: dict[str, str] = field(default_factory=dict)
+    citation_entries: dict[str, KBEntry] = field(default_factory=dict)
     _loaded: bool = False
+
+    def cited_target(self, check_id: str) -> str:
+        """Canonical check_id when check_id is a same-story citation, else ""."""
+        return self.citation_targets.get(check_id, "")
 
     def get_entry(self, check_id: str) -> KBEntry | None:
         """Look up an exact check_id match first, then fall back to the first
@@ -116,6 +131,9 @@ class KnowledgeBase:
         entry = self.entries.get(check_id)
         if entry is not None:
             return entry
+        cited_entry = self.citation_entries.get(check_id)
+        if cited_entry is not None:
+            return cited_entry
         for pattern, pattern_entry in self.pattern_entries:
             if pattern.match(check_id):
                 return pattern_entry
@@ -320,7 +338,37 @@ def _make_entry(raw_entry: object, source_path: Path) -> KBEntry:
         links=_normalize_links(raw_entry.get("links", {})),
         is_pattern=bool(raw_entry.get("pattern", False)),
         content_from=str(raw_entry.get("content_from", "")).strip(),
+        citations=_normalize_citations(raw_entry.get("citations", []), source_path, check_id),
     )
+
+
+def _normalize_citations(raw_value: object, source_path: Path, check_id: str) -> tuple[KBCitation, ...]:
+    if raw_value in (None, "", []):
+        return ()
+    if not isinstance(raw_value, list):
+        raise ValueError(f"Invalid citations in {source_path} for {check_id}")
+    citations: list[KBCitation] = []
+    seen: set[str] = set()
+    for item in raw_value:
+        if not isinstance(item, dict):
+            raise ValueError(f"Invalid citation in {source_path} for {check_id}")
+        cited_id = str(item.get("check_id", "")).strip()
+        if not cited_id or cited_id in seen:
+            continue
+        if cited_id == check_id:
+            raise ValueError(f"KB citation self-reference: {check_id}")
+        seen.add(cited_id)
+        citations.append(
+            KBCitation(
+                check_id=cited_id,
+                include_in_findings=_normalize_include_in_findings(
+                    item.get("include_in_findings"), source_path
+                ),
+                finding_group=_normalize_finding_group(item.get("finding_group")),
+                finding_group_title=_normalize_finding_group(item.get("finding_group_title")),
+            )
+        )
+    return tuple(citations)
 
 
 def _compile_check_id_pattern(glob_pattern: str) -> re.Pattern:
@@ -423,6 +471,42 @@ def _copy_inherited_content(alias_entry: KBEntry, target_entry: KBEntry) -> KBEn
     )
 
 
+def _citation_targets(entries: dict[str, KBEntry]) -> dict[str, str]:
+    targets: dict[str, str] = {}
+    for entry in entries.values():
+        if entry.content_from and entry.citations:
+            raise ValueError(
+                f"KB entry sets content_from and citations: {entry.check_id}"
+            )
+        for citation in entry.citations:
+            if citation.check_id in entries:
+                raise ValueError(f"KB cited check is also a row: {citation.check_id}")
+            previous = targets.get(citation.check_id)
+            if previous and previous != entry.check_id:
+                raise ValueError(
+                    f"KB cited check has two targets: {citation.check_id} -> {previous}, {entry.check_id}"
+                )
+            targets[citation.check_id] = entry.check_id
+    return targets
+
+
+def _citation_entries(entries: dict[str, KBEntry]) -> dict[str, KBEntry]:
+    cited_entries: dict[str, KBEntry] = {}
+    for entry in entries.values():
+        for citation in entry.citations:
+            cited_entries[citation.check_id] = replace(
+                entry,
+                check_id=citation.check_id,
+                title=entry.title,
+                content_from=entry.check_id,
+                citations=(),
+                include_in_findings=citation.include_in_findings,
+                finding_group=citation.finding_group,
+                finding_group_title=citation.finding_group_title,
+            )
+    return cited_entries
+
+
 def _resolve_content_from(entries: dict[str, KBEntry]) -> dict[str, KBEntry]:
     resolved: dict[str, KBEntry] = {}
     for check_id, entry in entries.items():
@@ -463,6 +547,8 @@ def load_kb(kb_dir: Path | None = None) -> KnowledgeBase:
         entries=entries,
         active_versions=load_active_versions(base_dir),
         pattern_entries=pattern_entries,
+        citation_targets=_citation_targets(entries),
+        citation_entries=_citation_entries(entries),
         _loaded=True,
     )
     _KB_CACHE = knowledge_base

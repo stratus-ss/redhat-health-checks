@@ -1,3 +1,5 @@
+
+
 [[checks]]
 check_id = "7.9.hw.*.identity"
 title = "Hardware Identity"
@@ -33,6 +35,7 @@ default = "https://docs.redhat.com/en/documentation/openshift_container_platform
 "4.20" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/installing_on_bare_metal/index#installation-requirements-user-infra_installing-bare-metal"
 "4.21" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html-single/installing_on_bare_metal/index#installation-requirements-user-infra_installing-bare-metal"
 "4.22" = "https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html-single/installing_on_bare_metal/index#installation-requirements-user-infra_installing-bare-metal"
+
 [[checks]]
 check_id = "7.9.hw.*.memory"
 title = "Memory"

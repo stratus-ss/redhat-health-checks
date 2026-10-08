@@ -160,21 +160,17 @@ def _evaluate_ingress_aggregate(category_data: dict, category_id: str, category_
 def _evaluate_storage_aggregate(category_data: dict, category_id: str, category_name: str) -> list[CheckResult]:
     """TSR 3.9.5, 3.9.6: CSI drivers, flexvolumes."""
     checks: list[CheckResult] = []
+    checks.append(_evaluate_csi_drivers(category_data, category_id, category_name))
+    checks += _evaluate_csi_cso(
+        category_data.get("csidriver", {}),
+        category_data.get("crds", {}),
+        category_id,
+        category_name,
+    )
     storage_class_data = category_data.get("storageclass", {})
     if not _is_missing(storage_class_data):
         items = _get_items(storage_class_data, default_single=True)
         provisioners = set(storage_class.get("provisioner", "") for storage_class in items)
-        csi = [provider for provider in provisioners if ".csi." in provider or provider.endswith(".csi")]
-        if csi:
-            checks.append(CheckResult(category_id, category_name, f"{category_id}.storage.csi",
-                                      "StorageClass provisioners (engine)", "PASS",
-                                      f"CSI provisioners: {', '.join(sorted(csi))}",
-                                      "storageclass"))
-        else:
-            checks.append(CheckResult(category_id, category_name, f"{category_id}.storage.csi",
-                                      "StorageClass provisioners (engine)", "WARNING",
-                                      f"No CSI drivers detected. Provisioners: {', '.join(sorted(provisioners))}",
-                                      "storageclass"))
         flex = [provider for provider in provisioners if "flex" in provider.lower()]
         checks.append(CheckResult(category_id, category_name, f"{category_id}.storage.flexvolumes",
                                   "3.9.6 Storage Flexvolumes",
@@ -183,11 +179,158 @@ def _evaluate_storage_aggregate(category_data: dict, category_id: str, category_
                                   else "No flexvolume provisioners (deprecated mechanism not in use)",
                                   "storageclass"))
     else:
-        checks.append(_not_applicable(f"{category_id}.storage.csi", "StorageClass provisioners (engine)", category_id, category_name))
         checks.append(CheckResult(category_id, category_name, f"{category_id}.storage.flexvolumes",
                                   "3.9.6 Storage Flexvolumes", "NOT_APPLICABLE",
                                   "Storage class data unavailable", "storageclass"))
     return checks
+
+
+def _evaluate_csi_drivers(category_data: dict, category_id: str, category_name: str) -> CheckResult:
+    csidriver_data = category_data.get("csidriver", {})
+    if not _is_missing(csidriver_data):
+        drivers = _get_items(csidriver_data)
+        if drivers:
+            names = [_resource_name(driver) for driver in drivers]
+            return CheckResult(
+                category_id, category_name, f"{category_id}.storage.csi",
+                "StorageClass provisioners (engine)", "PASS",
+                f"CSIDriver(s): {', '.join(names[:8])}",
+                "csidriver",
+            )
+    storage_class_data = category_data.get("storageclass", {})
+    if _is_missing(storage_class_data):
+        return _not_applicable(
+            f"{category_id}.storage.csi", "StorageClass provisioners (engine)",
+            category_id, category_name,
+        )
+    items = _get_items(storage_class_data, default_single=True)
+    provisioners = set(storage_class.get("provisioner", "") for storage_class in items)
+    csi = [provider for provider in provisioners if ".csi." in provider or provider.endswith(".csi")]
+    if csi:
+        return CheckResult(
+            category_id, category_name, f"{category_id}.storage.csi",
+            "StorageClass provisioners (engine)", "PASS",
+            f"CSI provisioners: {', '.join(sorted(csi))}",
+            "storageclass",
+        )
+    return CheckResult(
+        category_id, category_name, f"{category_id}.storage.csi",
+        "StorageClass provisioners (engine)", "WARNING",
+        f"No CSI drivers detected. Provisioners: {', '.join(sorted(provisioners))}",
+        "storageclass",
+    )
+
+
+_CSO_ENUM_MARKER = "ebs.csi.aws.com"
+_RH_OUTSIDE_CSO = frozenset({
+    "lvm.csi.topolvm.io",
+    "topolvm.io",
+    "kubevirt.io.hostpath-provisioner",
+})
+_CSI_CSO_TITLE = "CSI driver CSO allow-list"
+
+
+def _cso_driver_enum(crd_items: list) -> list[str] | None:
+    """Return unique CSO ClusterCSIDriver enum names, or None if missing."""
+    for item in crd_items:
+        if _resource_name(item) != "clustercsidrivers.operator.openshift.io":
+            continue
+        found: list[str] = []
+        stack: list[object] = [item]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, dict):
+                enum_values = node.get("enum")
+                if isinstance(enum_values, list) and _CSO_ENUM_MARKER in enum_values:
+                    found.extend(
+                        value for value in enum_values if isinstance(value, str)
+                    )
+                stack.extend(node.values())
+            elif isinstance(node, list):
+                stack.extend(node)
+        unique_names = list(dict.fromkeys(found))
+        return unique_names if unique_names else None
+    return None
+
+
+def _csi_driver_in_cso_allowlist(name: str, enum_names: set[str]) -> bool:
+    if name in enum_names:
+        return True
+    if name.startswith("openshift-storage."):
+        return True
+    return name in _RH_OUTSIDE_CSO
+
+
+def _evaluate_csi_cso(
+    csidriver_data: dict,
+    crds_data: dict,
+    category_id: str,
+    category_name: str,
+) -> list[CheckResult]:
+    check_id = f"{category_id}.storage.csi_cso"
+    if csidriver_data.get("_hc_error") or crds_data.get("_hc_error"):
+        return [CheckResult(
+            category_id, category_name, check_id, _CSI_CSO_TITLE, "SKIPPED",
+            "CSIDriver or CRD collection failed", "csidriver",
+        )]
+    if not csidriver_data or csidriver_data.get("_hc_not_found"):
+        return [_not_applicable(
+            check_id, _CSI_CSO_TITLE, category_id, category_name,
+            evidence="CSIDriver list not collected",
+        )]
+    drivers = _get_items(csidriver_data)
+    names = [_resource_name(driver) for driver in drivers]
+    if not names:
+        return [CheckResult(
+            category_id, category_name, check_id, _CSI_CSO_TITLE, "WARNING",
+            "No CSIDriver items", "csidriver",
+        )]
+    enum_names = _cso_driver_enum(_get_items(crds_data))
+    if not enum_names:
+        return [CheckResult(
+            category_id, category_name, check_id, _CSI_CSO_TITLE, "SKIPPED",
+            "ClusterCSIDriver CRD enum not found", "crd",
+        )]
+    enum_set = set(enum_names)
+    third_party = [
+        name for name in names
+        if not _csi_driver_in_cso_allowlist(name, enum_set)
+    ]
+    if third_party:
+        return [CheckResult(
+            category_id, category_name, check_id, _CSI_CSO_TITLE, "WARNING",
+            f"Third-party CSIDriver(s) outside CSO enum: {', '.join(third_party[:8])}",
+            "csidriver",
+        )]
+    return [CheckResult(
+        category_id, category_name, check_id, _CSI_CSO_TITLE, "PASS",
+        f"CSIDriver(s) in CSO enum or Red Hat outside CSO: {', '.join(names[:8])}",
+        "csidriver",
+    )]
+
+
+def _evaluate_localvolume(category_data: dict, category_id: str, category_name: str) -> list[CheckResult]:
+    localvolume_data = category_data.get("localvolume", {})
+    if localvolume_data.get("_hc_error"):
+        return [CheckResult(
+            category_id, category_name, f"{category_id}.storage.localvolume",
+            "LocalVolume", "SKIPPED",
+            "LocalVolume collection failed", "localvolume",
+        )]
+    items = [] if localvolume_data.get("_hc_not_found") else _get_items(localvolume_data)
+    if not items:
+        return [_not_applicable(
+            f"{category_id}.storage.localvolume", "LocalVolume",
+            category_id, category_name,
+            evidence="LocalVolume not installed",
+        )]
+    names = [_resource_name(item) for item in items]
+    return [CheckResult(
+        category_id, category_name, f"{category_id}.storage.localvolume",
+        "LocalVolume", "PASS",
+        f"{len(items)} LocalVolume(s): {', '.join(names[:8])}",
+        "localvolume",
+    )]
 
 
 def _evaluate_storage(storage_class_data: dict, pv_data: dict, pvc_data: dict,

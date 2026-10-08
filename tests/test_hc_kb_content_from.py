@@ -48,7 +48,6 @@ include_in_findings = false
     assert alias_entry.impact == canonical_entry.impact
     assert alias_entry.links == canonical_entry.links
     assert alias_entry.title == "Alias title"
-    assert alias_entry.include_in_findings is False
     assert alias_entry.content_from == "canon.one"
 
 

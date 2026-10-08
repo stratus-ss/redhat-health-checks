@@ -1,5 +1,8 @@
 # Design: TSR inventory dump condensation
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 `_extract_leaf_check` already strips HTML, condenses identical PASS/INFO
 host groups, then clips at 32_000 characters. Remaining dumps are not
 host PASS groups: ` · ` inventory tables, `(nconnect=…)` mount lines,

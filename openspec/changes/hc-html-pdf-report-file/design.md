@@ -1,5 +1,8 @@
 # Design: named REPORT file for HTML/PDF export
 
+> **Not a rebuild input.** Archived history. Implement `openspec/specs/hc-report-engine/spec.md`. Production knowledge-base rows use `[[checks.citations]]`. This archive is not replayed.
+
+
 Discover-all (`hc_export_paths.py` three positionals, no `--source`) is unchanged: prune peer wins; two sources mapping to one dest raise `ExportPathCollision` (exit 1).
 
 Named export is `--source PATH` plus optional `--allow-overwrite`. `prepare_named_source_export` validates the file, resolves dest (in-tree relative path vs basename-only), and collects warning titles `PRUNED SIBLING IGNORED` and `SOURCE OUTSIDE REPORT TREE`. Banners are 72 `=` lines around `WARNING: {title}`.
